@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#2f5fe0">
+    <title>מעקב התנסויות</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%232f5fe0'/><path d='M28 52l14 14 30-32' stroke='white' stroke-width='11' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #f3f5fa;
+        --surface: #ffffff;
+        --surface-2: #f7f9fc;
+        --text: #0f172a;
+        --muted: #64748b;
+        --line: #e3e8f0;
+        --blue: #2f5fe0;
+        --blue-soft: #edf2ff;
+        --orange: #e3600f;
+        --orange-soft: #fff2e8;
+        --green: #16a34a;
+        --green-soft: #eafaf0;
+        --danger: #dc2626;
+        --shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 6px 20px rgba(15, 23, 42, .06);
+        --radius: 18px;
+        --accent: var(--blue);
+        --accent-soft: var(--blue-soft);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b1020;
+          --surface: #141a2d;
+          --surface-2: #1a2138;
+          --text: #e7ebf5;
+          --muted: #94a0b8;
+          --line: #262f4a;
+          --blue: #7aa2ff;
+          --blue-soft: #1a2550;
+          --orange: #ff9757;
+          --orange-soft: #3b2417;
+          --green: #4ade80;
+          --green-soft: #14301f;
+          --danger: #f87171;
+          --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+        }
+      }
+    
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Heebo', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        -webkit-tap-highlight-color: transparent;
+      }
+      button, input { font: inherit; color: inherit; }
+      button { cursor: pointer; }
+      [hidden] { display: none !important; }
+    
+      .wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 16px 16px calc(110px + env(safe-area-inset-bottom));
+      }
+    
+      /* ---------- states ---------- */
+      .center-state {
+        min-height: 70vh;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        color: var(--muted); text-align: center; gap: 8px;
+      }
+      .spinner {
+        width: 34px; height: 34px; border-radius: 50%;
+        border: 3px solid var(--line); border-top-color: var(--blue);
+        animation: spin .8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    
+      /* ---------- header ---------- */
+      .topbar {
+        display: flex; align-items: center; gap: 10px;
+        margin: 4px 0 18px;
+      }
+      .topbar h1 { font-size: 1.5rem; font-weight: 800; margin: 0; flex: 1; letter-spacing: -.01em; }
+      .topbar .sub { color: var(--muted); font-size: .9rem; margin: 0; }
+      .icon-btn {
+        width: 42px; height: 42px; flex: none;
+        display: grid; place-items: center;
+        border-radius: 12px; border: 1px solid var(--line);
+        background: var(--surface); color: var(--muted);
+        transition: background .15s, color .15s;
+      }
+      .icon-btn:hover { color: var(--text); }
+      .icon-btn svg { width: 20px; height: 20px; }
+      .icon-btn.spinning svg { animation: spin .8s linear infinite; }
+    
+      /* ---------- people ---------- */
+      .hero { margin: 18px 0 22px; }
+      .hero h1 { font-size: 1.7rem; font-weight: 800; margin: 0 0 4px; }
+      .hero p { margin: 0; color: var(--muted); }
+      .demo-note {
+        margin-top: 12px !important; padding: 10px 14px; border-radius: 12px;
+        background: var(--orange-soft); color: var(--orange) !important; font-size: .88rem;
+      }
+      .people {
+        display: grid; gap: 12px;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      }
+      .person {
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
+        padding: 20px 12px 16px;
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: var(--radius); box-shadow: var(--shadow);
+        transition: transform .12s, border-color .15s;
+      }
+      .person:hover { border-color: var(--blue); }
+      .person:active { transform: scale(.97); }
+      .avatar {
+        width: 54px; height: 54px; border-radius: 50%;
+        display: grid; place-items: center;
+        font-weight: 800; font-size: 1.25rem;
+        background: var(--blue-soft); color: var(--blue);
+      }
+      .person .name { font-weight: 700; }
+      .person .meta { font-size: .82rem; color: var(--muted); margin-top: -6px; }
+    
+      /* ---------- tabs ---------- */
+      .tabs {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+        padding: 5px; margin-bottom: 16px;
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: 14px;
+        position: sticky; top: 8px; z-index: 5;
+        box-shadow: var(--shadow);
+      }
+      .tab {
+        border: 0; background: transparent; border-radius: 10px;
+        padding: 10px 8px; font-weight: 600; color: var(--muted);
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        transition: background .15s, color .15s;
+      }
+      .tab .count {
+        min-width: 24px; padding: 0 7px; border-radius: 99px;
+        font-size: .78rem; line-height: 22px;
+        background: var(--surface-2); color: var(--muted);
+      }
+      .tab.active { background: var(--accent-soft); color: var(--accent); }
+      .tab.active .count { background: var(--accent); color: #fff; }
+    
+      .t-0 { --accent: var(--blue); --accent-soft: var(--blue-soft); }
+      .t-1 { --accent: var(--orange); --accent-soft: var(--orange-soft); }
+    
+      /* ---------- cards ---------- */
+      .list { display: grid; gap: 14px; }
+      .section-title {
+        font-size: .85rem; font-weight: 700; color: var(--muted);
+        margin: 18px 4px 0;
+      }
+      .card {
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: var(--radius); box-shadow: var(--shadow);
+        padding: 16px; position: relative; overflow: hidden;
+      }
+      .card::before {
+        content: ''; position: absolute; inset: 0 0 auto 0; height: 4px;
+        background: var(--accent);
+      }
+      .card-top { display: flex; align-items: flex-start; gap: 10px; }
+      .card-top h3 { margin: 0; flex: 1; font-size: 1.1rem; font-weight: 700; word-break: break-word; }
+      .del {
+        border: 0; background: transparent; color: var(--muted);
+        width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+        margin: -6px -6px 0 0; flex: none;
+      }
+      .del:hover { color: var(--danger); background: var(--surface-2); }
+      .del svg { width: 18px; height: 18px; }
+    
+      .steps { display: flex; gap: 5px; margin: 14px 0 8px; direction: rtl; }
+      .step { flex: 1; height: 7px; border-radius: 99px; background: var(--line); transition: background .25s; }
+      .step.on { background: var(--accent); }
+      .stage-label { font-size: .9rem; color: var(--muted); }
+      .stage-label b { color: var(--text); font-weight: 600; }
+    
+      .msg {
+        margin-top: 12px; padding: 12px 14px;
+        background: var(--accent-soft); border-radius: 14px;
+      }
+      .msg-head {
+        display: flex; align-items: center; justify-content: space-between;
+        font-size: .8rem; font-weight: 700; color: var(--accent); margin-bottom: 4px;
+      }
+      .msg p { margin: 0; white-space: pre-wrap; word-break: break-word; }
+      .copy {
+        border: 0; background: var(--surface); color: var(--accent);
+        font-size: .8rem; font-weight: 600; padding: 4px 10px; border-radius: 99px;
+        display: inline-flex; align-items: center; gap: 5px;
+      }
+      .copy svg { width: 14px; height: 14px; }
+    
+      .actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 14px; }
+      .btn {
+        border-radius: 12px; padding: 11px 14px; font-weight: 600;
+        border: 1px solid var(--line); background: var(--surface);
+        transition: transform .1s, opacity .15s, background .15s;
+      }
+      .btn:active:not(:disabled) { transform: scale(.97); }
+      .btn:disabled { opacity: .4; cursor: default; }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      .btn.ghost { background: transparent; }
+      .btn.done-btn { background: var(--green); border-color: var(--green); color: #fff; }
+    
+      .card.done { --accent: var(--green); --accent-soft: var(--green-soft); }
+      .card.done .actions { grid-template-columns: 1fr; }
+      .badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: .78rem; font-weight: 700; padding: 2px 10px; border-radius: 99px;
+        background: var(--green-soft); color: var(--green); flex: none;
+      }
+    
+      .empty {
+        text-align: center; color: var(--muted);
+        padding: 44px 20px; border: 2px dashed var(--line); border-radius: var(--radius);
+      }
+      .empty b { display: block; color: var(--text); font-size: 1.05rem; margin-bottom: 4px; }
+    
+      /* ---------- FAB ---------- */
+      .fab {
+        position: fixed; z-index: 10;
+        left: 50%; transform: translateX(-50%);
+        bottom: calc(20px + env(safe-area-inset-bottom));
+        border: 0; border-radius: 99px;
+        padding: 14px 26px; font-weight: 700; font-size: 1rem;
+        background: var(--accent); color: #fff;
+        display: flex; align-items: center; gap: 8px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, .25);
+      }
+      .fab svg { width: 20px; height: 20px; }
+      .fab:active { transform: translateX(-50%) scale(.96); }
+    
+      /* ---------- modal ---------- */
+      .modal { position: fixed; inset: 0; z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+      .modal-backdrop { position: absolute; inset: 0; background: rgba(8, 12, 24, .45); animation: fade .2s; }
+      .sheet {
+        position: relative; width: 100%; max-width: 520px;
+        background: var(--surface); border-radius: 22px 22px 0 0;
+        padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
+        animation: up .22s ease-out;
+      }
+      @media (min-width: 640px) {
+        .modal { align-items: center; }
+        .sheet { border-radius: 22px; padding-bottom: 20px; }
+        .sheet-handle { display: none; }
+      }
+      .sheet-handle { width: 40px; height: 5px; border-radius: 99px; background: var(--line); margin: 0 auto 10px; }
+      .sheet h2 { margin: 6px 0 16px; font-size: 1.25rem; }
+      .field { display: block; margin-bottom: 16px; }
+      .label { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+      .field input {
+        width: 100%; padding: 12px 14px; border-radius: 12px;
+        border: 1px solid var(--line); background: var(--surface-2); outline: none;
+      }
+      .field input:focus { border-color: var(--accent); }
+      .type-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .type-opt {
+        padding: 12px; border-radius: 12px; font-weight: 600;
+        border: 2px solid var(--line); background: var(--surface-2);
+      }
+      .type-opt.sel { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+      .sheet-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 6px; }
+      @keyframes up { from { transform: translateY(40px); opacity: 0; } }
+      @keyframes fade { from { opacity: 0; } }
+    
+      /* ---------- toast ---------- */
+      .toast {
+        position: fixed; z-index: 30; left: 50%; top: 16px;
+        transform: translate(-50%, -150%);
+        background: var(--text); color: var(--bg);
+        padding: 10px 18px; border-radius: 99px; font-weight: 600; font-size: .9rem;
+        transition: transform .25s; pointer-events: none; max-width: calc(100% - 32px);
+      }
+      .toast.show { transform: translate(-50%, 0); }
+    </style>
+    <div id="app" class="wrap">
+      <div class="center-state"><div class="spinner"></div><p>טוען…</p></div>
+    </div>
+
+    <div id="modal" class="modal" hidden>
+      <div class="modal-backdrop" data-act="close-modal"></div>
+      <form class="sheet" id="add-form" autocomplete="off">
+        <div class="sheet-handle"></div>
+        <h2>התנסות חדשה</h2>
+        <div class="field">
+          <span class="label">סוג</span>
+          <div class="type-pick" id="type-pick"></div>
+        </div>
+        <label class="field">
+          <span class="label">שם / תיאור</span>
+          <input id="add-title" type="text" maxlength="200" placeholder="למשל: הדרכת מטווח" required>
+        </label>
+        <div class="sheet-actions">
+          <button type="button" class="btn ghost" data-act="close-modal">ביטול</button>
+          <button type="submit" class="btn primary">הוספה</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="config.js"></script>
+    <script>
+      const ICONS = {
+        back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+        refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
+        trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
+        plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+        copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>'
+      };
+      const PLURAL = { 'הדרכתית': 'הדרכתיות', 'פיקודית': 'פיקודיות' };
+    
+      const state = {
+        data: null,
+        person: storeGet('person'),
+        tab: storeGet('tab') || 'הדרכתית',
+        addType: null,
+        pending: 0,
+        refreshing: false
+      };
+    
+      const app = document.getElementById('app');
+      const modal = document.getElementById('modal');
+      const form = document.getElementById('add-form');
+      const titleInput = document.getElementById('add-title');
+    
+      // ---------- helpers ----------
+      function storeGet(k) { try { return localStorage.getItem('exp:' + k); } catch (e) { return null; } }
+      function storeSet(k, v) {
+        try { v == null ? localStorage.removeItem('exp:' + k) : localStorage.setItem('exp:' + k, v); } catch (e) {}
+      }
+      function esc(s) {
+        return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      }
+      // ---------- API (Google Sheets via Apps Script, or local demo) ----------
+      const API_URL = (window.CONFIG && window.CONFIG.API_URL || '').trim();
+    
+      async function call(fn, ...args) {
+        if (!API_URL) return Demo[fn](...args);
+        let res;
+        if (fn === 'getData') {
+          res = await fetch(API_URL + (API_URL.includes('?') ? '&' : '?') + 't=' + Date.now());
+        } else {
+          // text/plain avoids a CORS preflight, which Apps Script doesn't support
+          res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: fn, args })
+          });
+        }
+        if (!res.ok) throw new Error('שגיאת רשת (' + res.status + ')');
+        const j = await res.json();
+        if (j && j.error) throw new Error(j.error);
+        return j;
+      }
+    
+      // מצב הדגמה: כשאין API_URL, הנתונים נשמרים בדפדפן בלבד
+      const Demo = (() => {
+        const TYPES = ['הדרכתית', 'פיקודית'];
+        const counts = { 'הדרכתית': 5, 'פיקודית': 4 };
+        const stages = {};
+        TYPES.forEach(t => {
+          stages[t] = [];
+          for (let i = 1; i <= counts[t]; i++) stages[t].push({
+            num: i, name: 'שלב ' + i + ' (' + t + ')',
+            message: 'ממלא מקום: {שם}, בהתנסות "{התנסות}" עכשיו צריך לבצע את שלב ' + i + '.'
+          });
+        });
+        const people = [1, 2, 3, 4, 5].map(i => 'חניך ' + i);
+        let exps;
+        try { exps = JSON.parse(localStorage.getItem('exp:demo') || '[]'); } catch (e) { exps = []; }
+        const save = () => { try { localStorage.setItem('exp:demo', JSON.stringify(exps)); } catch (e) {} };
+        const snap = () => JSON.parse(JSON.stringify({ people, types: TYPES, stages, experiences: exps }));
+        const delay = v => new Promise(r => setTimeout(() => r(v), 150));
+        return {
+          getData: () => delay(snap()),
+          addExperience(person, type, title) {
+            const now = new Date().toISOString();
+            exps.push({ id: 'd' + Date.now(), person, type, title, stage: 1, created: now, updated: now });
+            save(); return delay(snap());
+          },
+          moveStage(id, d) {
+            const x = exps.find(e => e.id === id);
+            if (x) { x.stage = Math.min(stages[x.type].length + 1, Math.max(1, x.stage + (d > 0 ? 1 : -1))); x.updated = new Date().toISOString(); }
+            save(); return delay(snap());
+          },
+          deleteExperience(id) { exps = exps.filter(e => e.id !== id); save(); return delay(snap()); }
+        };
+      })();
+      let toastTimer;
+      function toast(text) {
+        const t = document.getElementById('toast');
+        t.textContent = text;
+        t.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+      }
+      function typeIdx(type) { return Math.max(0, state.data.types.indexOf(type)); }
+      function stagesOf(type) { return state.data.stages[type] || []; }
+      function isDone(exp) { return exp.stage > stagesOf(exp.type).length; }
+      function fillMessage(msg, exp) {
+        return msg.replace(/\{שם\}/g, exp.person).replace(/\{התנסות\}/g, exp.title);
+      }
+      function initials(name) {
+        const parts = name.trim().split(/\s+/);
+        return parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2);
+      }
+    
+      // ---------- data ----------
+      async function refresh(silent) {
+        if (state.refreshing) return;
+        state.refreshing = true;
+        if (silent) setRefreshSpin(true);
+        try {
+          const d = await call('getData');
+          if (state.pending === 0) { state.data = d; render(); }
+        } catch (e) {
+          if (!state.data) renderError(e);
+          else toast('הרענון נכשל');
+        } finally {
+          state.refreshing = false;
+          setRefreshSpin(false);
+        }
+      }
+      function setRefreshSpin(on) {
+        const b = document.querySelector('[data-act="refresh"]');
+        if (b) b.classList.toggle('spinning', on);
+      }
+    
+      async function mutate(fn, args, optimistic, okMsg) {
+        const snapshot = JSON.stringify(state.data);
+        optimistic();
+        render();
+        state.pending++;
+        try {
+          const d = await call(fn, ...args);
+          state.pending--;
+          if (state.pending === 0) { state.data = d; render(); }
+          if (okMsg) toast(okMsg);
+        } catch (e) {
+          state.pending--;
+          state.data = JSON.parse(snapshot);
+          render();
+          toast((e && e.message) ? 'שגיאה: ' + e.message : 'השמירה נכשלה, נסה שוב');
+        }
+      }
+    
+      // ---------- render ----------
+      function render() {
+        if (!state.data) return;
+        if (!state.person || state.data.people.indexOf(state.person) === -1) renderPeople();
+        else renderPerson();
+      }
+    
+      function renderError(e) {
+        app.innerHTML = `<div class="center-state">
+          <p><b>לא הצלחנו לטעון את הנתונים</b></p>
+          <p>${esc((e && e.message) || '')}</p>
+          <button class="btn primary" data-act="retry">נסה שוב</button></div>`;
+      }
+    
+      function renderPeople() {
+        const active = {};
+        state.data.experiences.forEach(x => { if (!isDone(x)) active[x.person] = (active[x.person] || 0) + 1; });
+        app.innerHTML = `
+          <div class="hero">
+            <h1>מעקב התנסויות</h1>
+            <p>בחר/י שם כדי לראות את ההתנסויות</p>
+            ${API_URL ? '' : '<p class="demo-note">מצב הדגמה: הנתונים נשמרים רק בדפדפן הזה. כדי לסנכרן, הגדירו API_URL בקובץ config.js</p>'}
+          </div>
+          <div class="people">
+            ${state.data.people.map(p => `
+              <button class="person" data-act="pick" data-name="${esc(p)}">
+                <span class="avatar">${esc(initials(p))}</span>
+                <span class="name">${esc(p)}</span>
+                <span class="meta">${active[p] ? active[p] + ' פעילות' : 'אין פעילות'}</span>
+              </button>`).join('')}
+          </div>`;
+      }
+    
+      function renderPerson() {
+        const d = state.data;
+        if (d.types.indexOf(state.tab) === -1) state.tab = d.types[0];
+        const mine = d.experiences.filter(x => x.person === state.person);
+        const tabIdx = typeIdx(state.tab);
+        const counts = {};
+        d.types.forEach(t => counts[t] = mine.filter(x => x.type === t && !isDone(x)).length);
+    
+        const list = mine.filter(x => x.type === state.tab)
+          .sort((a, b) => (b.updated || '').localeCompare(a.updated || ''));
+        const active = list.filter(x => !isDone(x));
+        const done = list.filter(isDone);
+    
+        let body;
+        if (!list.length) {
+          body = `<div class="empty"><b>אין עדיין התנסויות ${esc(PLURAL[state.tab] || state.tab)}</b>לחצו על "התנסות חדשה" כדי להוסיף</div>`;
+        } else {
+          body = active.map(cardHtml).join('');
+          if (done.length) body += `<div class="section-title">הושלמו (${done.length})</div>` + done.map(cardHtml).join('');
+        }
+    
+        app.innerHTML = `
+          <div class="topbar">
+            <button class="icon-btn" data-act="switch" title="החלפת שם" aria-label="החלפת שם">${ICONS.back}</button>
+            <div style="flex:1;min-width:0">
+              <h1>${esc(state.person)}</h1>
+              <p class="sub">${mine.filter(x => !isDone(x)).length} התנסויות פעילות</p>
+            </div>
+            <button class="icon-btn" data-act="refresh" title="רענון" aria-label="רענון">${ICONS.refresh}</button>
+          </div>
+          <div class="tabs">
+            ${d.types.map((t, i) => `
+              <button class="tab t-${i} ${t === state.tab ? 'active' : ''}" data-act="tab" data-type="${esc(t)}">
+                ${esc(PLURAL[t] || t)} <span class="count">${counts[t]}</span>
+              </button>`).join('')}
+          </div>
+          <div class="list t-${tabIdx}">${body}</div>
+          <button class="fab t-${tabIdx}" data-act="add">${ICONS.plus} התנסות חדשה</button>`;
+        setRefreshSpin(state.refreshing);
+      }
+    
+      function cardHtml(x) {
+        const stages = stagesOf(x.type);
+        const n = stages.length;
+        const done = isDone(x);
+        const cur = stages[x.stage - 1];
+        const steps = stages.map((s, i) =>
+          `<span class="step ${i < x.stage ? 'on' : ''}" title="${esc(s.name)}"></span>`).join('');
+    
+        let middle, actions;
+        if (done) {
+          middle = `<div class="stage-label">כל ${n} השלבים הושלמו</div>`;
+          actions = `<button class="btn" data-act="move" data-id="${esc(x.id)}" data-d="-1">→ החזרה לשלב ${n}</button>`;
+        } else {
+          const msg = cur ? fillMessage(cur.message, x) : '';
+          middle = `
+            <div class="stage-label">שלב ${x.stage} מתוך ${n} · <b>${esc(cur ? cur.name : '')}</b></div>
+            ${msg ? `<div class="msg">
+              <div class="msg-head"><span>מה עושים עכשיו</span>
+                <button class="copy" data-act="copy" data-id="${esc(x.id)}">${ICONS.copy} העתקה</button></div>
+              <p>${esc(msg)}</p></div>` : ''}`;
+          const last = x.stage === n;
+          actions = `
+            <button class="btn" data-act="move" data-id="${esc(x.id)}" data-d="-1" ${x.stage <= 1 ? 'disabled' : ''}>→ שלב קודם</button>
+            <button class="btn ${last ? 'done-btn' : 'primary'}" data-act="move" data-id="${esc(x.id)}" data-d="1">
+              ${last ? '✓ סיום התנסות' : 'שלב הבא ←'}</button>`;
+        }
+    
+        return `
+          <article class="card ${done ? 'done' : ''}">
+            <div class="card-top">
+              <h3>${esc(x.title)}</h3>
+              ${done ? '<span class="badge">✓ הושלמה</span>' : ''}
+              <button class="del" data-act="del" data-id="${esc(x.id)}" title="מחיקה" aria-label="מחיקה">${ICONS.trash}</button>
+            </div>
+            <div class="steps">${steps}</div>
+            ${middle}
+            <div class="actions">${actions}</div>
+          </article>`;
+      }
+    
+      // ---------- modal ----------
+      function openModal() {
+        state.addType = state.tab;
+        renderTypePick();
+        titleInput.value = '';
+        modal.hidden = false;
+        setTimeout(() => titleInput.focus(), 50);
+      }
+      function closeModal() { modal.hidden = true; }
+      function renderTypePick() {
+        const i = typeIdx(state.addType);
+        form.className = 'sheet t-' + i;
+        document.getElementById('type-pick').innerHTML = state.data.types.map((t, j) =>
+          `<button type="button" class="type-opt t-${j} ${t === state.addType ? 'sel' : ''}" data-act="pick-type" data-type="${esc(t)}">${esc(t)}</button>`
+        ).join('');
+      }
+    
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        const title = titleInput.value.trim();
+        if (!title) { titleInput.focus(); return; }
+        const type = state.addType, person = state.person;
+        closeModal();
+        state.tab = type; storeSet('tab', type);
+        const now = new Date().toISOString();
+        mutate('addExperience', [person, type, title], () => {
+          state.data.experiences.push({ id: 'tmp-' + Date.now(), person, type, title, stage: 1, created: now, updated: now });
+        }, 'ההתנסות נוספה');
+      });
+    
+      // ---------- copy ----------
+      async function copyText(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (e) {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.select();
+          document.execCommand('copy');
+          ta.remove();
+        }
+        toast('ההודעה הועתקה');
+      }
+    
+      // ---------- events ----------
+      document.addEventListener('click', e => {
+        const el = e.target.closest('[data-act]');
+        if (!el) return;
+        const act = el.dataset.act;
+        const id = el.dataset.id;
+        const exp = id ? state.data.experiences.find(x => x.id === id) : null;
+    
+        if (act === 'pick') { state.person = el.dataset.name; storeSet('person', state.person); render(); window.scrollTo(0, 0); }
+        else if (act === 'switch') { state.person = null; storeSet('person', null); render(); }
+        else if (act === 'tab') { state.tab = el.dataset.type; storeSet('tab', state.tab); render(); }
+        else if (act === 'refresh') refresh(true);
+        else if (act === 'retry') { app.innerHTML = '<div class="center-state"><div class="spinner"></div></div>'; refresh(); }
+        else if (act === 'add') openModal();
+        else if (act === 'close-modal') closeModal();
+        else if (act === 'pick-type') { state.addType = el.dataset.type; renderTypePick(); }
+        else if (act === 'copy' && exp) {
+          const s = stagesOf(exp.type)[exp.stage - 1];
+          if (s) copyText(fillMessage(s.message, exp));
+        }
+        else if (act === 'move' && exp) {
+          if (String(exp.id).startsWith('tmp-')) return toast('רגע, עדיין שומר…');
+          const delta = Number(el.dataset.d);
+          const max = stagesOf(exp.type).length + 1;
+          mutate('moveStage', [exp.id, delta], () => {
+            exp.stage = Math.min(max, Math.max(1, exp.stage + delta));
+            exp.updated = new Date().toISOString();
+          }, exp.stage + delta > stagesOf(exp.type).length ? 'כל הכבוד! ההתנסות הושלמה 🎉' : null);
+        }
+        else if (act === 'del' && exp) {
+          if (String(exp.id).startsWith('tmp-')) return toast('רגע, עדיין שומר…');
+          if (!confirm(`למחוק את "${exp.title}"?`)) return;
+          mutate('deleteExperience', [exp.id], () => {
+            state.data.experiences = state.data.experiences.filter(x => x.id !== exp.id);
+          }, 'נמחק');
+        }
+      });
+    
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && state.data) refresh(true); });
+    
+      refresh();
+    </script>
+  </body>
+</html>
