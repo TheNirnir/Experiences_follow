@@ -10,6 +10,23 @@ const SHEET_STAGES = 'שלבים';
 const SHEET_EXP = 'התנסויות';
 const TYPES = ['הדרכתית', 'פיקודית'];
 
+/** שלבי ברירת מחדל (זהים לשני הסוגים בינתיים). אחרי ההתקנה נערכים בלשונית "שלבים". */
+const DEFAULT_STAGES = [
+  ['לא הוגש אישור תוכניות', '{שם}, יש להכין ולהגיש אישור תוכניות להתנסות "{התנסות}".'],
+  ['הוגש אישור תוכניות ועוד לא אושר', 'אישור התוכניות להתנסות "{התנסות}" הוגש. יש לעקוב עד לקבלת אישור.'],
+  ['אושרו תוכניות', 'התוכניות להתנסות "{התנסות}" אושרו. יש להתכונן לביצוע.'],
+  ['ביצוע (ממלא מקום)', 'ממלא מקום: ביצוע ההתנסות "{התנסות}".'],
+  ['משוב וסיכום (ממלא מקום)', 'ממלא מקום: משוב וסיכום ההתנסות "{התנסות}".']
+];
+
+function defaultStageRows_() {
+  const rows = [];
+  TYPES.forEach(function (type) {
+    DEFAULT_STAGES.forEach(function (s, i) { rows.push([type, i + 1, s[0], s[1]]); });
+  });
+  return rows;
+}
+
 // ---------- API (האתר עצמו יושב ב-GitHub Pages וקורא לכאן) ----------
 
 const ACTIONS = {
@@ -57,27 +74,16 @@ function ensureSetup_() {
   let people = ss.getSheetByName(SHEET_PEOPLE);
   if (!people) {
     people = ss.insertSheet(SHEET_PEOPLE);
-    const rows = [['שם']];
-    for (let i = 1; i <= 5; i++) rows.push(['חניך ' + i]);
-    people.getRange(1, 1, rows.length, 1).setValues(rows);
-    styleHeader_(people, 1);
+    const rows = [['שם', 'צוות']];
+    for (let i = 1; i <= 5; i++) rows.push(['חניך ' + i, '']);
+    people.getRange(1, 1, rows.length, 2).setValues(rows);
+    styleHeader_(people, 2);
   }
 
   let stages = ss.getSheetByName(SHEET_STAGES);
   if (!stages) {
     stages = ss.insertSheet(SHEET_STAGES);
-    const rows = [['סוג', 'מספר', 'שם שלב', 'הודעה']];
-    const counts = { 'הדרכתית': 5, 'פיקודית': 4 };
-    TYPES.forEach(function (type) {
-      for (let i = 1; i <= counts[type]; i++) {
-        rows.push([
-          type,
-          i,
-          'שלב ' + i + ' (' + type + ')',
-          'ממלא מקום: {שם}, בהתנסות "{התנסות}" עכשיו צריך לבצע את שלב ' + i + '.'
-        ]);
-      }
-    });
+    const rows = [['סוג', 'מספר', 'שם שלב', 'הודעה']].concat(defaultStageRows_());
     stages.getRange(1, 1, rows.length, 4).setValues(rows);
     stages.setColumnWidth(3, 180);
     stages.setColumnWidth(4, 480);
@@ -212,6 +218,37 @@ function withLock_(fn) {
     lock.releaseLock();
   }
   return getData();
+}
+
+// ---------- ייבוא נתונים ----------
+
+/**
+ * מחליף את כל הגיליון בנתונים שהועברו: אנשים, שלבים (ברירת מחדל) והתנסויות.
+ * people: [[שם, צוות], ...]
+ * experiences: [[שם, סוג, תיאור, מספר שלב], ...]
+ * נקרא מ-importInitialData() שבקובץ Import.gs (לא נשמר ב-GitHub).
+ */
+function replaceAllData_(people, experiences) {
+  ensureSetup_();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  const p = ss.getSheetByName(SHEET_PEOPLE);
+  if (p.getLastRow() > 1) p.getRange(2, 1, p.getLastRow() - 1, Math.max(2, p.getLastColumn())).clearContent();
+  p.getRange(1, 1, 1, 2).setValues([['שם', 'צוות']]);
+  p.getRange(2, 1, people.length, 2).setValues(people);
+
+  const s = ss.getSheetByName(SHEET_STAGES);
+  if (s.getLastRow() > 1) s.getRange(2, 1, s.getLastRow() - 1, 4).clearContent();
+  const stageRows = defaultStageRows_();
+  s.getRange(2, 1, stageRows.length, 4).setValues(stageRows);
+
+  const e = ss.getSheetByName(SHEET_EXP);
+  if (e.getLastRow() > 1) e.getRange(2, 1, e.getLastRow() - 1, 7).clearContent();
+  const now = new Date();
+  const rows = experiences.map(function (x) {
+    return [Utilities.getUuid(), x[0], x[1], safe_(x[2]), x[3] || 1, now, now];
+  });
+  if (rows.length) e.getRange(2, 1, rows.length, 7).setValues(rows);
 }
 
 /** מונע מטקסט שמתחיל ב-= להפוך לנוסחה. */

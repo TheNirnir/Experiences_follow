@@ -274,6 +274,20 @@
         border: 2px solid var(--line); background: var(--surface-2);
       }
       .type-opt.sel { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; max-height: 38vh; overflow-y: auto; padding: 2px; }
+      .chip {
+        padding: 7px 13px; border-radius: 99px; font-size: .9rem; font-weight: 500;
+        border: 1.5px solid var(--line); background: var(--surface-2);
+      }
+      .chip.sel { border-color: var(--accent); background: var(--accent); color: #fff; }
+      .chip.other { border-style: dashed; }
+      .download {
+        display: inline-flex; align-items: center; gap: 6px; margin-top: 6px;
+        font-size: .85rem; font-weight: 600; color: var(--accent); text-decoration: none;
+        padding: 4px 12px 4px 10px; border-radius: 99px; background: var(--accent-soft);
+      }
+      .download:hover { text-decoration: underline; }
+      .download svg { width: 15px; height: 15px; }
       .sheet-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 6px; }
       @keyframes up { from { transform: translateY(40px); opacity: 0; } }
       @keyframes fade { from { opacity: 0; } }
@@ -301,9 +315,13 @@
           <span class="label">סוג</span>
           <div class="type-pick" id="type-pick"></div>
         </div>
-        <label class="field">
-          <span class="label">שם / תיאור</span>
-          <input id="add-title" type="text" maxlength="200" placeholder="למשל: הדרכת מטווח" required>
+        <div class="field" id="catalog-field">
+          <span class="label">התנסות</span>
+          <div class="chips" id="catalog-pick"></div>
+        </div>
+        <label class="field" id="title-field">
+          <span class="label">שם ההתנסות</span>
+          <input id="add-title" type="text" maxlength="200" placeholder="למשל: שיעור מגילת צה״ל">
         </label>
         <div class="sheet-actions">
           <button type="button" class="btn ghost" data-act="close-modal">ביטול</button>
@@ -315,6 +333,7 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <script src="config.js"></script>
+    <script src="catalog.js"></script>
     <script>
       const ICONS = {
         back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
@@ -323,7 +342,16 @@
         plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
         copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>'
       };
+      ICONS.download = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>';
       const PLURAL = { 'הדרכתית': 'הדרכתיות', 'פיקודית': 'פיקודיות' };
+      const CATALOG = window.CATALOG || [];
+      const OTHER = '__other__';
+      // השוואת שמות סלחנית: מתעלם מסוגי גרשיים ורווחים
+      const norm = s => String(s).replace(/[״"׳']/g, '').replace(/\s+/g, ' ').trim();
+      function fileFor(title) {
+        const c = CATALOG.find(c => c.file && norm(c.name) === norm(title));
+        return c ? c.file : null;
+      }
     
       const state = {
         data: null,
@@ -372,15 +400,15 @@
       // מצב הדגמה: כשאין API_URL, הנתונים נשמרים בדפדפן בלבד
       const Demo = (() => {
         const TYPES = ['הדרכתית', 'פיקודית'];
-        const counts = { 'הדרכתית': 5, 'פיקודית': 4 };
+        const DEF = [
+          ['לא הוגש אישור תוכניות', '{שם}, יש להכין ולהגיש אישור תוכניות להתנסות "{התנסות}".'],
+          ['הוגש אישור תוכניות ועוד לא אושר', 'אישור התוכניות להתנסות "{התנסות}" הוגש. יש לעקוב עד לקבלת אישור.'],
+          ['אושרו תוכניות', 'התוכניות להתנסות "{התנסות}" אושרו. יש להתכונן לביצוע.'],
+          ['ביצוע (ממלא מקום)', 'ממלא מקום: ביצוע ההתנסות "{התנסות}".'],
+          ['משוב וסיכום (ממלא מקום)', 'ממלא מקום: משוב וסיכום ההתנסות "{התנסות}".']
+        ];
         const stages = {};
-        TYPES.forEach(t => {
-          stages[t] = [];
-          for (let i = 1; i <= counts[t]; i++) stages[t].push({
-            num: i, name: 'שלב ' + i + ' (' + t + ')',
-            message: 'ממלא מקום: {שם}, בהתנסות "{התנסות}" עכשיו צריך לבצע את שלב ' + i + '.'
-          });
-        });
+        TYPES.forEach(t => { stages[t] = DEF.map((s, i) => ({ num: i + 1, name: s[0], message: s[1] })); });
         const people = [1, 2, 3, 4, 5].map(i => 'חניך ' + i);
         let exps;
         try { exps = JSON.parse(localStorage.getItem('exp:demo') || '[]'); } catch (e) { exps = []; }
@@ -564,7 +592,10 @@
         return `
           <article class="card ${done ? 'done' : ''}">
             <div class="card-top">
-              <h3>${esc(x.title)}</h3>
+              <div style="flex:1;min-width:0">
+                <h3>${esc(x.title)}</h3>
+                ${fileFor(x.title) ? `<a class="download" href="${esc(encodeURI(fileFor(x.title)))}" download>${ICONS.download} הורדת התנסות</a>` : ''}
+              </div>
               ${done ? '<span class="badge">✓ הושלמה</span>' : ''}
               <button class="del" data-act="del" data-id="${esc(x.id)}" title="מחיקה" aria-label="מחיקה">${ICONS.trash}</button>
             </div>
@@ -577,10 +608,10 @@
       // ---------- modal ----------
       function openModal() {
         state.addType = state.tab;
-        renderTypePick();
+        state.addChoice = null;
         titleInput.value = '';
+        renderTypePick();
         modal.hidden = false;
-        setTimeout(() => titleInput.focus(), 50);
       }
       function closeModal() { modal.hidden = true; }
       function renderTypePick() {
@@ -589,12 +620,22 @@
         document.getElementById('type-pick').innerHTML = state.data.types.map((t, j) =>
           `<button type="button" class="type-opt t-${j} ${t === state.addType ? 'sel' : ''}" data-act="pick-type" data-type="${esc(t)}">${esc(t)}</button>`
         ).join('');
+        const options = CATALOG.filter(c => c.type === state.addType);
+        document.getElementById('catalog-field').hidden = !options.length;
+        document.getElementById('catalog-pick').innerHTML = options.map(c =>
+          `<button type="button" class="chip ${state.addChoice === c.name ? 'sel' : ''}" data-act="pick-cat" data-name="${esc(c.name)}">${esc(c.name)}</button>`
+        ).join('') + `<button type="button" class="chip other ${state.addChoice === OTHER ? 'sel' : ''}" data-act="pick-cat" data-name="${OTHER}">אחר…</button>`;
+        // שדה טקסט חופשי: כשאין רשימה לסוג הזה, או כשנבחר "אחר"
+        const free = !options.length || state.addChoice === OTHER;
+        document.getElementById('title-field').hidden = !free;
+        if (free) setTimeout(() => titleInput.focus(), 50);
       }
-    
+
       form.addEventListener('submit', e => {
         e.preventDefault();
-        const title = titleInput.value.trim();
-        if (!title) { titleInput.focus(); return; }
+        const free = !document.getElementById('title-field').hidden;
+        const title = free ? titleInput.value.trim() : (state.addChoice || '');
+        if (!title) { free ? titleInput.focus() : toast('בחרו התנסות מהרשימה'); return; }
         const type = state.addType, person = state.person;
         closeModal();
         state.tab = type; storeSet('tab', type);
@@ -633,7 +674,8 @@
         else if (act === 'retry') { app.innerHTML = '<div class="center-state"><div class="spinner"></div></div>'; refresh(); }
         else if (act === 'add') openModal();
         else if (act === 'close-modal') closeModal();
-        else if (act === 'pick-type') { state.addType = el.dataset.type; renderTypePick(); }
+        else if (act === 'pick-type') { if (state.addType !== el.dataset.type) state.addChoice = null; state.addType = el.dataset.type; renderTypePick(); }
+        else if (act === 'pick-cat') { state.addChoice = el.dataset.name; renderTypePick(); }
         else if (act === 'copy' && exp) {
           const s = stagesOf(exp.type)[exp.stage - 1];
           if (s) copyText(fillMessage(s.message, exp));
