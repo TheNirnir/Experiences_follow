@@ -52,6 +52,7 @@ function defaultStageRows_() {
 const ACTIONS = {
   addExperience: addExperience,
   moveStage: moveStage,
+  setStage: setStage,
   deleteExperience: deleteExperience
 };
 
@@ -204,6 +205,19 @@ function moveStage(id, delta) {
     const max = getData().stages[type].length + 1;
     const cur = Number(sheet.getRange(row, 5).getValue()) || 1;
     const next = Math.min(max, Math.max(1, cur + delta));
+    sheet.getRange(row, 5).setValue(next);
+    sheet.getRange(row, 7).setValue(new Date());
+  });
+}
+
+/** קפיצה ישירה לשלב (stage = מספר השלבים + 1 → הושלמה) */
+function setStage(id, stage) {
+  return withLock_(function () {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_EXP);
+    const row = findRow_(sheet, id);
+    const type = String(sheet.getRange(row, 3).getValue());
+    const max = getData().stages[type].length + 1;
+    const next = Math.min(max, Math.max(1, Math.round(Number(stage)) || 1));
     sheet.getRange(row, 5).setValue(next);
     sheet.getRange(row, 7).setValue(new Date());
   });
