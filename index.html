@@ -274,7 +274,34 @@
         border: 2px solid var(--line); background: var(--surface-2);
       }
       .type-opt.sel { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-      .chips { display: flex; flex-wrap: wrap; gap: 8px; max-height: 38vh; overflow-y: auto; padding: 2px; }
+      .chip-groups { max-height: 42vh; overflow-y: auto; padding: 2px; margin: 0 -2px; }
+      .chip-group { font-size: .78rem; font-weight: 700; color: var(--muted); margin: 12px 2px 6px; }
+      .chip-group:first-child { margin-top: 0; }
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+      .forms-btn {
+        margin-top: 14px; display: inline-flex; align-items: center; gap: 8px;
+        padding: 9px 16px; border-radius: 99px; font-weight: 600;
+        border: 1px solid var(--line); background: var(--surface); color: var(--text);
+      }
+      .forms-btn svg { width: 18px; height: 18px; color: var(--blue); }
+      .forms-list { display: grid; gap: 8px; margin-bottom: 12px; }
+      .form-row, .msg-form {
+        display: flex; align-items: center; gap: 8px;
+      }
+      .form-row {
+        padding: 12px 14px; border-radius: 12px;
+        background: var(--surface-2); border: 1px solid var(--line);
+      }
+      .form-row span, .msg-form span { flex: 1; min-width: 0; font-weight: 500; }
+      .form-row svg, .msg-form svg { width: 18px; height: 18px; flex: none; color: var(--muted); }
+      .msg-form { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(127,127,127,.18); font-size: .9rem; }
+      .file-link {
+        flex: none; font-size: .8rem; font-weight: 700; text-decoration: none;
+        padding: 4px 11px; border-radius: 99px;
+        background: var(--surface); color: var(--blue); border: 1px solid var(--line);
+      }
+      .msg-form .file-link { color: var(--accent); }
+      .file-link:hover { border-color: currentColor; }
       .chip {
         padding: 7px 13px; border-radius: 99px; font-size: .9rem; font-weight: 500;
         border: 1.5px solid var(--line); background: var(--surface-2);
@@ -317,7 +344,7 @@
         </div>
         <div class="field" id="catalog-field">
           <span class="label">התנסות</span>
-          <div class="chips" id="catalog-pick"></div>
+          <div class="chip-groups" id="catalog-pick"></div>
         </div>
         <label class="field" id="title-field">
           <span class="label">שם ההתנסות</span>
@@ -328,6 +355,18 @@
           <button type="submit" class="btn primary">הוספה</button>
         </div>
       </form>
+    </div>
+
+    <div id="forms-modal" class="modal" hidden>
+      <div class="modal-backdrop" data-act="close-forms"></div>
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <h2>טפסים להגשה</h2>
+        <div id="forms-list" class="forms-list"></div>
+        <div class="sheet-actions" style="grid-template-columns:1fr">
+          <button type="button" class="btn ghost" data-act="close-forms">סגירה</button>
+        </div>
+      </div>
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -344,7 +383,9 @@
       };
       ICONS.download = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>';
       const PLURAL = { 'הדרכתית': 'הדרכתיות', 'פיקודית': 'פיקודיות' };
+      ICONS.doc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>';
       const CATALOG = window.CATALOG || [];
+      const FORMS = window.FORMS || [];
       const OTHER = '__other__';
       // השוואת שמות סלחנית: מתעלם מסוגי גרשיים ורווחים
       const norm = s => String(s).replace(/[״"׳']/g, '').replace(/\s+/g, ' ').trim();
@@ -366,6 +407,7 @@
       const modal = document.getElementById('modal');
       const form = document.getElementById('add-form');
       const titleInput = document.getElementById('add-title');
+      const formsModal = document.getElementById('forms-modal');
     
       // ---------- helpers ----------
       function storeGet(k) { try { return localStorage.getItem('exp:' + k); } catch (e) { return null; } }
@@ -401,11 +443,12 @@
       const Demo = (() => {
         const TYPES = ['הדרכתית', 'פיקודית'];
         const DEF = [
-          ['לא הוגש אישור תוכניות', '{שם}, יש להכין ולהגיש אישור תוכניות להתנסות "{התנסות}".'],
-          ['הוגש אישור תוכניות ועוד לא אושר', 'אישור התוכניות להתנסות "{התנסות}" הוגש. יש לעקוב עד לקבלת אישור.'],
-          ['אושרו תוכניות', 'התוכניות להתנסות "{התנסות}" אושרו. יש להתכונן לביצוע.'],
-          ['ביצוע (ממלא מקום)', 'ממלא מקום: ביצוע ההתנסות "{התנסות}".'],
-          ['משוב וסיכום (ממלא מקום)', 'ממלא מקום: משוב וסיכום ההתנסות "{התנסות}".']
+          ['הורדת התנסות', 'תחילת המעקב על מעגל החניכה.\nבקרה שתוך 24 שעות (או זמן אחר, תלוי התנסות) {שם} מעלה לקמפוס את דף אישור התוכניות של "{התנסות}".'],
+          ['אישור תוכניות', 'מעבר על טופס אישור התוכניות של {שם}: חידוד ודיוק.\nעדכון המפק"ץ שהטופס הועלה לקמפוס ותקין.'],
+          ['ביצוע ההתנסות', 'ביצוע ההתנסות "{התנסות}".'],
+          ['משוב חם של הצוות', 'בסוף ההתנסות: לוודא שבוצע משוב חם של הצוות ולשמור על איכותו.'],
+          ['כתיבת דף תחקור עצמי', 'הגשה עד 24 שעות לאחר סיום ההתנסות.\nמעבר על איכות הדף והעמקת {שם} בו.\nעדכון המפק"ץ שהדף הוגש בקמפוס ושאפשר להכניס את {שם} למשוב.'],
+          ['משוב מהמפק"ץ', 'משוב מהמפק"ץ בסוף ההתנסות.\nיש להגיע למשוב עם דף התחקור.']
         ];
         const stages = {};
         TYPES.forEach(t => { stages[t] = DEF.map((s, i) => ({ num: i + 1, name: s[0], message: s[1] })); });
@@ -510,6 +553,7 @@
             <h1>מעקב התנסויות</h1>
             <p>בחר/י שם כדי לראות את ההתנסויות</p>
             ${API_URL ? '' : '<p class="demo-note">מצב הדגמה: הנתונים נשמרים רק בדפדפן הזה. כדי לסנכרן, הגדירו API_URL בקובץ config.js</p>'}
+            <button class="forms-btn" data-act="forms">${ICONS.doc} טפסים להגשה</button>
           </div>
           <div class="people">
             ${state.data.people.map(p => `
@@ -549,6 +593,7 @@
               <h1>${esc(state.person)}</h1>
               <p class="sub">${mine.filter(x => !isDone(x)).length} התנסויות פעילות</p>
             </div>
+            <button class="icon-btn" data-act="forms" title="טפסים להגשה" aria-label="טפסים להגשה">${ICONS.doc}</button>
             <button class="icon-btn" data-act="refresh" title="רענון" aria-label="רענון">${ICONS.refresh}</button>
           </div>
           <div class="tabs">
@@ -581,7 +626,9 @@
             ${msg ? `<div class="msg">
               <div class="msg-head"><span>מה עושים עכשיו</span>
                 <button class="copy" data-act="copy" data-id="${esc(x.id)}">${ICONS.copy} העתקה</button></div>
-              <p>${esc(msg)}</p></div>` : ''}`;
+              <p>${esc(msg)}</p>
+              ${formsFor(x).map(f => `<div class="msg-form">${ICONS.doc}<span>${esc(f.name)}</span>${fileLinks(f)}</div>`).join('')}
+              </div>` : ''}`;
           const last = x.stage === n;
           actions = `
             <button class="btn" data-act="move" data-id="${esc(x.id)}" data-d="-1" ${x.stage <= 1 ? 'disabled' : ''}>→ שלב קודם</button>
@@ -620,15 +667,48 @@
         document.getElementById('type-pick').innerHTML = state.data.types.map((t, j) =>
           `<button type="button" class="type-opt t-${j} ${t === state.addType ? 'sel' : ''}" data-act="pick-type" data-type="${esc(t)}">${esc(t)}</button>`
         ).join('');
-        const options = CATALOG.filter(c => c.type === state.addType);
+        const options = CATALOG.filter(c => !c.type || c.type === state.addType);
         document.getElementById('catalog-field').hidden = !options.length;
-        document.getElementById('catalog-pick').innerHTML = options.map(c =>
-          `<button type="button" class="chip ${state.addChoice === c.name ? 'sel' : ''}" data-act="pick-cat" data-name="${esc(c.name)}">${esc(c.name)}</button>`
-        ).join('') + `<button type="button" class="chip other ${state.addChoice === OTHER ? 'sel' : ''}" data-act="pick-cat" data-name="${OTHER}">אחר…</button>`;
+        const groups = [];
+        options.forEach(c => {
+          let g = groups.find(g => g.name === (c.group || ''));
+          if (!g) groups.push(g = { name: c.group || '', items: [] });
+          g.items.push(c);
+        });
+        const chip = (name, label, cls) =>
+          `<button type="button" class="chip ${cls || ''}" data-act="pick-cat" data-name="${esc(name)}">${esc(label)}</button>`;
+        const box = document.getElementById('catalog-pick');
+        box.innerHTML = groups.map(g =>
+          (g.name ? `<div class="chip-group">${esc(g.name)}</div>` : '') +
+          `<div class="chips">${g.items.map(c => chip(c.name, c.name)).join('')}</div>`
+        ).join('') + `<div class="chips" style="margin-top:12px">${chip(OTHER, 'אחר (שם חופשי)…', 'other')}</div>`;
+        box.scrollTop = 0;
+        updateChoice(!options.length);
+      }
+      // סימון הבחירה בלי לבנות מחדש את הרשימה (כדי לא לאבד את מיקום הגלילה)
+      function updateChoice(noOptions) {
+        document.querySelectorAll('#catalog-pick .chip').forEach(b =>
+          b.classList.toggle('sel', b.dataset.name === state.addChoice));
         // שדה טקסט חופשי: כשאין רשימה לסוג הזה, או כשנבחר "אחר"
-        const free = !options.length || state.addChoice === OTHER;
+        const free = noOptions || state.addChoice === OTHER;
         document.getElementById('title-field').hidden = !free;
         if (free) setTimeout(() => titleInput.focus(), 50);
+      }
+
+      // ---------- forms ----------
+      function fileLinks(f) {
+        return f.files.map(x =>
+          `<a class="file-link" href="${esc(encodeURI(x.file))}" download>${esc(x.label)}</a>`).join('');
+      }
+      function formsFor(x) {
+        const c = CATALOG.find(c => norm(c.name) === norm(x.title));
+        const kind = c && c.group === 'סיורים' ? 'סיורים' : x.type;
+        return FORMS.filter(f => f.stages.indexOf(x.stage) !== -1 && (!f.for.length || f.for.indexOf(kind) !== -1));
+      }
+      function openForms() {
+        document.getElementById('forms-list').innerHTML = FORMS.map(f =>
+          `<div class="form-row">${ICONS.doc}<span>${esc(f.name)}</span>${fileLinks(f)}</div>`).join('');
+        formsModal.hidden = false;
       }
 
       form.addEventListener('submit', e => {
@@ -674,8 +754,10 @@
         else if (act === 'retry') { app.innerHTML = '<div class="center-state"><div class="spinner"></div></div>'; refresh(); }
         else if (act === 'add') openModal();
         else if (act === 'close-modal') closeModal();
+        else if (act === 'forms') openForms();
+        else if (act === 'close-forms') formsModal.hidden = true;
         else if (act === 'pick-type') { if (state.addType !== el.dataset.type) state.addChoice = null; state.addType = el.dataset.type; renderTypePick(); }
-        else if (act === 'pick-cat') { state.addChoice = el.dataset.name; renderTypePick(); }
+        else if (act === 'pick-cat') { state.addChoice = el.dataset.name; updateChoice(false); }
         else if (act === 'copy' && exp) {
           const s = stagesOf(exp.type)[exp.stage - 1];
           if (s) copyText(fillMessage(s.message, exp));
@@ -698,7 +780,7 @@
         }
       });
     
-      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); formsModal.hidden = true; } });
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && state.data) refresh(true); });
     
       refresh();
