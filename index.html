@@ -433,6 +433,10 @@
       .file-drop input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
       .file-drop svg { width: 22px; height: 22px; flex: none; color: var(--accent); }
       .file-drop span { flex: 1; min-width: 0; word-break: break-all; font-weight: 500; }
+      .link-btn {
+        border: 0; background: transparent; padding: 8px 2px 0; font-size: .86rem; font-weight: 600;
+        color: var(--accent); text-decoration: underline; text-underline-offset: 3px;
+      }
       .warn { font-size: .84rem; color: var(--orange); margin-top: 8px; }
       .btn-spin {
         display: inline-block; width: 16px; height: 16px; vertical-align: -3px; margin-inline-end: 6px;
@@ -620,6 +624,7 @@
             <input type="file" id="upload-file" accept="application/pdf,.pdf">
             <span id="upload-fname">בחירת קובץ…</span>
           </label>
+          <button type="button" class="link-btn" data-act="mark-no-file">הגשתי בדרך אחרת, רק לסמן שהגשתי</button>
         </div>
         <div class="sheet-actions">
           <button type="button" class="btn ghost" data-act="close-upload">ביטול</button>
@@ -734,7 +739,22 @@
         if (!res.ok) throw new Error('שגיאת רשת (' + res.status + ')');
         const j = await res.json();
         if (j && j.error) throw new Error(j.error);
-        return j;
+        return withTasks(j);
+      }
+
+      // כשהשרת עוד לא תומך במטלות: מציגים את המטלות ההתחלתיות לקריאה בלבד
+      function withTasks(d) {
+        if (d && d.people && !('assignments' in d)) {
+          d.assignments = seedTasks('seed-');
+          d.submissions = [];
+          d.tasksLocked = true;
+        }
+        return d;
+      }
+      function seedTasks(prefix) {
+        return (window.TASKS_SEED || []).map((t, i) => ({
+          id: prefix + i, title: t.title, due: t.due, places: t.places.slice(), other: t.other || '', created: String(i)
+        }));
       }
 
       // קפיצה לשלב. אם ה-Apps Script עוד לא עודכן עם setStage, מתקדמים צעד-צעד
@@ -770,7 +790,8 @@
         let exps;
         try { exps = JSON.parse(localStorage.getItem('exp:demo') || '[]'); } catch (e) { exps = []; }
         let tasks, subs;
-        try { tasks = JSON.parse(localStorage.getItem('exp:demo-tasks') || '[]'); } catch (e) { tasks = []; }
+        try { tasks = JSON.parse(localStorage.getItem('exp:demo-tasks') || 'null'); } catch (e) { tasks = null; }
+        if (!Array.isArray(tasks)) tasks = seedTasks('d-seed-');
         try { subs = JSON.parse(localStorage.getItem('exp:demo-subs') || '[]'); } catch (e) { subs = []; }
         const save = () => {
           try {
@@ -968,6 +989,7 @@
         return `${date} · <span class="${cls}">${rel}</span>`;
       }
       function placeNames(t) { return t.places.concat(t.other ? [t.other] : []); }
+      function placeText(t) { const p = placeNames(t); return p.length ? p.join(', ') : 'מקום הגשה לא נקבע'; }
 
       function renderTasks() {
         const d = state.data;
@@ -975,7 +997,7 @@
           (a.due || '9999').localeCompare(b.due || '9999') || (a.created || '').localeCompare(b.created || ''));
         const open = list.filter(t => !allIn(t));
         const done = list.filter(allIn);
-        const oldApi = API_URL && !('assignments' in d);
+        const locked = !!d.tasksLocked;
 
         let body;
         if (!list.length) {
@@ -993,12 +1015,13 @@
               <h1>מטלות</h1>
               <p>${open.length ? open.length + ' מטלות פתוחות' : list.length ? 'כולם הגישו הכול 🎉' : 'מה צריך להגיש ועד מתי'}</p>
               ${API_URL ? '' : '<p class="demo-note">מצב הדגמה: הנתונים נשמרים רק בדפדפן הזה, וקבצים לא עולים לדרייב.</p>'}
-              ${oldApi ? '<p class="demo-note">צריך לעדכן את קוד ה-Apps Script כדי שהמטלות יישמרו (ראו README).</p>' : ''}
+              ${locked ? '<p class="demo-note">העלאת מטלות וסימון הגשות יתאפשרו בהמשך.</p>' : ''}
+              ${d.driveFolder ? `<a class="pill-btn glass" style="text-decoration:none" href="${esc(d.driveFolder)}" target="_blank" rel="noopener">${ICONS.cloud} תיקיית ההגשות בדרייב</a>` : ''}
             </div>
             <button class="icon-btn glass" data-act="refresh" title="רענון" aria-label="רענון">${ICONS.refresh}</button>
           </div>
           <div class="list t-0">${body}</div>
-          <button class="fab t-0" data-act="add-task">${ICONS.plus} מטלה חדשה</button>`;
+          ${locked ? '' : `<button class="fab t-0" data-act="add-task">${ICONS.plus} מטלה חדשה</button>`}`;
         setRefreshSpin(state.refreshing);
       }
 
@@ -1020,22 +1043,25 @@
             ${pct ? `<circle class="ring-fg" cx="18" cy="18" r="15.9155" stroke-dasharray="${pct} 100"/>` : ''}
           </svg><span class="ring-t small">${done ? ICONS.check : count + '/' + total}</span></span>`;
 
+        const locked = !!state.data.tasksLocked;
         const tags = placeNames(t).map(p =>
-          `<span class="place-tag">${PLACE_ICON[p] ? ICONS[PLACE_ICON[p]] : ''}${esc(p)}</span>`).join('');
+          `<span class="place-tag">${PLACE_ICON[p] ? ICONS[PLACE_ICON[p]] : ''}${esc(p)}</span>`).join('')
+          || `<span class="place-tag">${esc(placeText(t))}</span>`;
 
         // לא הגישו: בדרייב → לחיצה פותחת העלאה בשם הזה; אחרת → לחיצה מסמנת שהגיש
         const missChips = missing.map(p => drive
           ? `<button class="chip miss" data-act="upload" data-id="${id}" data-name="${esc(p)}" title="העלאה בשם ${esc(p)}">${esc(p)}</button>`
           : `<button class="chip miss" data-act="toggle-sub" data-id="${id}" data-name="${esc(p)}" title="סימון שהגיש/ה">${esc(p)}</button>`
         ).join('');
+        // הגישו: קובץ שהועלה → קישור לקובץ; סימון ידני → לחיצה מבטלת
         const okChips = submitted.map(p => {
           const s = subFor(t.id, p);
-          if (drive) {
-            return s && s.url
+          if (s && s.mode === 'upload') {
+            return s.url
               ? `<a class="chip ok" href="${esc(s.url)}" target="_blank" rel="noopener" title="פתיחת הקובץ">${ICONS.check}${esc(p)}</a>`
               : `<span class="chip ok">${ICONS.check}${esc(p)}</span>`;
           }
-          return `<button class="chip ok" data-act="toggle-sub" data-id="${id}" data-name="${esc(p)}" title="ביטול הסימון">${ICONS.check}${esc(p)}</button>`;
+          return `<button class="chip ok" data-act="toggle-sub" data-id="${id}" data-name="${esc(p)}" title="ביטול הסימון">${ICONS.check}${esc(p)}${drive ? ' (בלי קובץ)' : ''}</button>`;
         }).join('');
 
         return `
@@ -1043,21 +1069,21 @@
             <button class="card-head" data-act="toggle" data-id="${id}" aria-expanded="${open}">
               ${ring}
               <span class="ch-text"><h3>${esc(t.title)}</h3>
-                <span class="ch-sub">${dueHtml(t)} · ${esc(placeNames(t).join(', '))}</span></span>
+                <span class="ch-sub">${dueHtml(t)} · ${esc(placeText(t))}</span></span>
               <span class="chev">${ICONS.chev}</span>
             </button>
             <div class="card-body"><div class="card-inner"><div class="card-pad">
               <div class="place-tags">${tags}</div>
-              ${drive ? `<button class="btn primary wide" data-act="upload" data-id="${id}">${ICONS.upload} העלאת PDF לדרייב</button>` : ''}
+              ${drive && !locked ? `<button class="btn primary wide" data-act="upload" data-id="${id}">${ICONS.upload} העלאת PDF לדרייב</button>` : ''}
               <div class="sub-head">לא הגישו (${missing.length})
-                ${missing.length ? `<span class="hint">· ${drive ? 'לחיצה על שם פותחת העלאה' : 'לחיצה על שם מסמנת שהגיש/ה'}</span>` : ''}</div>
+                ${missing.length && !locked ? `<span class="hint">· ${drive ? 'לחיצה על שם פותחת העלאה' : 'לחיצה על שם מסמנת שהגיש/ה'}</span>` : ''}</div>
               ${missing.length ? `<div class="chips">${missChips}</div>` : '<div class="none-left">כולם הגישו 🎉</div>'}
               ${submitted.length ? `<div class="sub-head">הגישו (${submitted.length})</div><div class="chips">${okChips}</div>` : ''}
               <div class="card-foot" style="margin-top:14px">
                 ${missing.length ? `<button class="del copy-btn" data-act="copy-missing" data-id="${id}">${ICONS.copy} העתקת רשימה</button>` : ''}
                 <span class="spacer"></span>
-                <button class="del copy-btn" data-act="edit-task" data-id="${id}">${ICONS.edit} עריכה</button>
-                <button class="del" data-act="del-task" data-id="${id}">${ICONS.trash} מחיקה</button>
+                ${locked ? '' : `<button class="del copy-btn" data-act="edit-task" data-id="${id}">${ICONS.edit} עריכה</button>
+                <button class="del" data-act="del-task" data-id="${id}">${ICONS.trash} מחיקה</button>`}
               </div>
             </div></div></div>
           </article>`;
@@ -1470,6 +1496,9 @@
 
         const task = id && state.data ? findTask(id) : null;
 
+        const TASK_ACTS = ['add-task', 'edit-task', 'del-task', 'toggle-sub', 'upload'];
+        if (state.data && state.data.tasksLocked && TASK_ACTS.indexOf(act) !== -1) return toast('העלאת מטלות תתאפשר בהמשך');
+
         if (act === 'page') {
           if (state.page !== el.dataset.page) { state.page = el.dataset.page; state.shownTab = null; render(); window.scrollTo(0, 0); }
         }
@@ -1499,6 +1528,16 @@
         else if (act === 'upload' && task) openUpload(task, el.dataset.name);
         else if (act === 'up-person') { if (!state.uploading) { state.upPerson = el.dataset.name; renderUploadPeople(); } }
         else if (act === 'close-upload') closeUpload();
+        else if (act === 'mark-no-file') {
+          if (state.uploading) return;
+          const t = findTask(state.upTask);
+          if (!t) return;
+          if (!state.upPerson) return toast('בחרו מי הגיש');
+          if (subFor(t.id, state.upPerson)) { uploadModal.hidden = true; return toast('כבר מסומן שהגשת'); }
+          storeSet('me', state.upPerson);
+          uploadModal.hidden = true;
+          toggleSub(t.id, state.upPerson, true);
+        }
         else if (act === 'copy-missing' && task) {
           const inSet = new Set(submittedPeople(task));
           const missing = state.data.people.filter(p => !inSet.has(p));

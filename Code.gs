@@ -11,8 +11,22 @@ const SHEET_TASKS = 'מטלות';
 const SHEET_SUBS = 'הגשות';
 const PLACES = ['קמפוס', 'דרייב', 'כתב יד'];
 const DRIVE = 'דרייב';
-/** תיקיית הדרייב שאליה עולות ההגשות (תת-תיקייה לכל מטלה) */
-const DRIVE_ROOT = '1tQxEaEdM074CxzhDxitfmmoZCMIUvLyN';
+/** מטלות התחלתיות שנכנסות כשנוצרת לשונית "מטלות": [שם, תג"ב, מקומות, אחר] */
+const DEFAULT_TASKS = [
+  ['ל״ע 2 ומבנה צה״ל', '2026-11-23', 'קמפוס,דרייב', ''],
+  ['למה קצונה?', '2026-11-26', 'כתב יד', ''],
+  ['סכמ״ש', '2026-11-27', '', 'במחברת (עד כניסת שבת)'],
+  ['ספרא וסייפא', '2026-12-14', '', '']
+];
+const SHEET_SETTINGS = 'הגדרות';
+/**
+ * תיקיית ההגשות בדרייב (תת-תיקייה לכל מטלה).
+ * הסקריפט יוצר אותה בעצמו, כי יש לו הרשאה רק לקבצים שהוא יצר (drive.file).
+ * המזהה נשמר בלשונית "הגדרות".
+ */
+const ROOT_FOLDER_NAME = 'הגשות מטלות';
+const ROOT_KEY = 'תיקיית הגשות';
+const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 /**
  * שלבי מעגל החניכה (לפי ה.ה קה"ד צוותי, סעיף 4(2)), זהים לשני הסוגים.
@@ -96,6 +110,8 @@ function respond_(fn) {
 /** הרצה ידנית פעם אחת (או אוטומטית בכניסה הראשונה): יוצר את הלשוניות עם ממלאי מקום. */
 function setup() {
   ensureSetup_();
+  const root = rootFolder_();
+  Logger.log('תיקיית ההגשות: ' + root.url);
 }
 
 function ensureSetup_() {
@@ -136,6 +152,11 @@ function ensureSetup_() {
     tasks.getRange(1, 1, 1, 7).setValues([['id', 'שם', 'תג"ב', 'מקומות', 'אחר', 'תיקייה', 'נוצר']]);
     tasks.getRange('A:F').setNumberFormat('@');
     styleHeader_(tasks, 7);
+    const now = new Date();
+    const seed = DEFAULT_TASKS.map(function (t) {
+      return [Utilities.getUuid(), t[0], t[1], t[2], t[3], '', now];
+    });
+    tasks.getRange(2, 1, seed.length, 7).setValues(seed);
   }
 
   let subs = ss.getSheetByName(SHEET_SUBS);
@@ -144,6 +165,14 @@ function ensureSetup_() {
     subs.getRange(1, 1, 1, 6).setValues([['מטלה', 'שם', 'אופן', 'fileId', 'קישור', 'זמן']]);
     subs.getRange('A:E').setNumberFormat('@');
     styleHeader_(subs, 6);
+  }
+
+  let settings = ss.getSheetByName(SHEET_SETTINGS);
+  if (!settings) {
+    settings = ss.insertSheet(SHEET_SETTINGS);
+    settings.getRange(1, 1, 1, 3).setValues([['מפתח', 'ערך', 'קישור']]);
+    settings.getRange('A:B').setNumberFormat('@');
+    styleHeader_(settings, 3);
   }
 
   // מחיקת הגיליון הריק שנוצר כברירת מחדל, אם קיים
@@ -212,7 +241,8 @@ function getData() {
 
   return {
     people: people, types: TYPES, stages: stages, experiences: experiences,
-    places: PLACES, assignments: assignments, submissions: submissions
+    places: PLACES, assignments: assignments, submissions: submissions,
+    driveFolder: getSetting_(ROOT_KEY).url
   };
 }
 
@@ -339,7 +369,7 @@ function updateAssignment(id, title, due, places, other) {
     sheet.getRange(row, 2, 1, 4).setValues([[safe_(t.title), t.due, t.places.join(','), safe_(t.other)]]);
     // שינוי שם → גם שם התיקייה בדרייב
     if (String(old[1]) !== t.title && old[5]) {
-      try { DriveApp.getFolderById(String(old[5])).setName(t.title); } catch (e) {}
+      try { Drive.Files.update({ name: t.title }, String(old[5])); } catch (e) {}
     }
   });
 }
@@ -358,7 +388,7 @@ function deleteAssignment(id) {
   });
 }
 
-/** סימון ידני (on=true) או ביטול סימון (on=false), למטלות שלא מוגשות בדרייב */
+/** סימון ידני שהוגש (on=true) או ביטול סימון (on=false). גם במטלות דרייב (הגשה בלי העלאה). */
 function setSubmitted(aid, person, on) {
   person = String(person || '').trim();
   return withLock_(function () {
@@ -366,11 +396,14 @@ function setSubmitted(aid, person, on) {
     if (data.people.indexOf(person) === -1) throw new Error('שם לא קיים');
     const task = data.assignments.filter(function (a) { return a.id === String(aid); })[0];
     if (!task) throw new Error('המטלה לא נמצאה (אולי נמחקה)');
-    if (task.places.indexOf(DRIVE) !== -1) throw new Error('במטלה הזאת מגישים בהעלאת קובץ לדרייב');
     const subs = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SUBS);
     const row = findSubRow_(subs, aid, person);
     if (on && !row) subs.appendRow([String(aid), safe_(person), 'manual', '', '', new Date()]);
-    if (!on && row) subs.deleteRow(row);
+    if (!on && row) {
+      // הגשה שהועלתה לדרייב לא מבטלים מכאן, כדי לא לאבד את הקישור לקובץ
+      if (String(subs.getRange(row, 3).getValue()) === 'upload') throw new Error('כבר הועלה קובץ להגשה הזאת');
+      subs.deleteRow(row);
+    }
   });
 }
 
@@ -399,17 +432,20 @@ function uploadSubmission(aid, person, base64) {
 
   // 2. יצירת הקובץ (מחוץ לנעילה, כי זה יכול לקחת זמן)
   const name = (person + ' - ' + task.title).replace(/[\\/]/g, '-') + '.pdf';
-  const file = DriveApp.getFolderById(folderId).createFile(Utilities.newBlob(bytes, 'application/pdf', name));
+  const file = Drive.Files.create(
+    { name: name, parents: [folderId], mimeType: 'application/pdf' },
+    Utilities.newBlob(bytes, 'application/pdf', name),
+    { fields: 'id,webViewLink' });
 
   // 3. רישום ההגשה
   return withLock_(function () {
     const subs = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SUBS);
     const row = findSubRow_(subs, aid, person);
-    const values = [String(aid), safe_(person), 'upload', file.getId(), file.getUrl(), new Date()];
+    const values = [String(aid), safe_(person), 'upload', file.id, file.webViewLink, new Date()];
     if (row) {
       const oldId = String(subs.getRange(row, 4).getValue());
-      if (oldId && oldId !== file.getId()) {
-        try { DriveApp.getFileById(oldId).setTrashed(true); } catch (e) {}
+      if (oldId && oldId !== file.id) {
+        try { Drive.Files.update({ trashed: true }, oldId); } catch (e) {}
       }
       subs.getRange(row, 1, 1, 6).setValues([values]);
     } else {
@@ -423,17 +459,60 @@ function taskFolder_(task) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TASKS);
   const row = findRowIn_(sheet, function (r) { return String(r[0]) === task.id; }, 'המטלה לא נמצאה');
   const cached = String(sheet.getRange(row, 6).getValue() || '');
-  if (cached) {
-    try {
-      const f = DriveApp.getFolderById(cached);
-      if (!f.isTrashed()) return cached;
-    } catch (e) {}
+  if (cached && driveAlive_(cached)) return cached;
+  const rootId = rootFolder_().id;
+  const found = Drive.Files.list({
+    q: "name = '" + driveQ_(task.title) + "' and '" + rootId + "' in parents and mimeType = '" + FOLDER_MIME + "' and trashed = false",
+    fields: 'files(id)', pageSize: 1
+  }).files || [];
+  const id = found.length ? found[0].id : createFolder_(task.title, rootId).id;
+  sheet.getRange(row, 6).setValue(id);
+  return id;
+}
+
+/** תיקיית ההגשות הראשית: נוצרת בפעם הראשונה ונשמרת בלשונית "הגדרות". */
+function rootFolder_() {
+  const cur = getSetting_(ROOT_KEY);
+  if (cur.value && driveAlive_(cur.value)) return { id: cur.value, url: cur.url };
+  const f = createFolder_(ROOT_FOLDER_NAME, null);
+  setSetting_(ROOT_KEY, f.id, f.webViewLink);
+  return { id: f.id, url: f.webViewLink };
+}
+
+function createFolder_(name, parentId) {
+  const res = { name: name, mimeType: FOLDER_MIME };
+  if (parentId) res.parents = [parentId];
+  return Drive.Files.create(res, null, { fields: 'id,webViewLink' });
+}
+
+/** האם הקובץ/התיקייה קיימים, נגישים ולא בפח */
+function driveAlive_(id) {
+  try {
+    return !Drive.Files.get(id, { fields: 'trashed' }).trashed;
+  } catch (e) {
+    return false;
   }
-  const root = DriveApp.getFolderById(DRIVE_ROOT);
-  const it = root.getFoldersByName(task.title);
-  const folder = it.hasNext() ? it.next() : root.createFolder(task.title);
-  sheet.getRange(row, 6).setValue(folder.getId());
-  return folder.getId();
+}
+
+/** בריחה של תווים בשאילתת חיפוש של Drive */
+function driveQ_(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function getSetting_(key) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SETTINGS);
+  if (!sheet) return { value: '', url: '' };
+  const r = rows_(sheet).filter(function (r) { return String(r[0]) === key; })[0];
+  return r ? { value: String(r[1] || ''), url: String(r[2] || '') } : { value: '', url: '' };
+}
+
+function setSetting_(key, value, url) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SETTINGS);
+  const rows = rows_(sheet);
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]) === key) { sheet.getRange(i + 2, 2, 1, 2).setValues([[value, url]]); return; }
+  }
+  sheet.appendRow([key, value, url]);
 }
 
 function findSubRow_(subs, aid, person) {
