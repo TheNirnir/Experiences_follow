@@ -96,7 +96,7 @@
       .wrap {
         max-width: 680px;
         margin: 0 auto;
-        padding: 16px 16px calc(120px + env(safe-area-inset-bottom));
+        padding: 16px 16px calc(190px + env(safe-area-inset-bottom));
       }
 
       /* ---------- states ---------- */
@@ -358,7 +358,7 @@
       .fab {
         position: fixed; z-index: 10;
         left: 50%; transform: translateX(-50%);
-        bottom: calc(22px + env(safe-area-inset-bottom));
+        bottom: calc(96px + env(safe-area-inset-bottom));
         border: 0; border-radius: 99px;
         padding: 15px 28px; font-weight: 700; font-size: 1rem;
         background: var(--accent); color: #fff;
@@ -368,6 +368,77 @@
       }
       .fab svg { width: 20px; height: 20px; }
       .fab:active { transform: translateX(-50%) scale(.96); }
+
+      /* ---------- tab bar (מטלות / התנסויות) ---------- */
+      .tabbar {
+        position: fixed; z-index: 11; left: 50%; transform: translateX(-50%);
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        width: min(360px, calc(100% - 32px));
+        display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+        padding: 5px; border-radius: 22px;
+        background: var(--glass-strong);
+      }
+      .tb-btn {
+        border: 0; background: transparent; border-radius: 17px;
+        padding: 8px 6px; font-weight: 700; font-size: .92rem; color: var(--muted);
+        display: flex; align-items: center; justify-content: center; gap: 7px;
+        transition: background .2s, color .2s;
+      }
+      .tb-btn svg { width: 20px; height: 20px; }
+      .tb-btn.active { background: var(--blue-soft); color: var(--blue); }
+      .tb-btn .badge {
+        min-width: 20px; padding: 0 6px; border-radius: 99px;
+        font-size: .72rem; line-height: 19px; background: var(--orange); color: #fff;
+      }
+
+      /* ---------- tasks page ---------- */
+      .hero-row { display: flex; align-items: flex-start; gap: 10px; }
+      .hero-row > div { flex: 1; min-width: 0; }
+      .ch-sub .late { color: var(--danger); font-weight: 600; }
+      .ch-sub .soon { color: var(--orange); font-weight: 600; }
+      .ring-t.small { font-size: .82rem; }
+      .place-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+      .place-tag {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: .82rem; font-weight: 600; padding: 4px 11px; border-radius: 99px;
+        background: var(--accent-soft); color: var(--accent);
+      }
+      .place-tag svg { width: 14px; height: 14px; }
+      .wide { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+      .wide svg { width: 18px; height: 18px; }
+      .sub-head {
+        font-size: .8rem; font-weight: 700; color: var(--muted);
+        margin: 14px 2px 7px; display: flex; align-items: center; gap: 8px;
+      }
+      .sub-head .hint { font-weight: 500; opacity: .8; }
+      .chip { text-decoration: none; color: var(--text); display: inline-flex; align-items: center; gap: 5px; }
+      .chip svg { width: 14px; height: 14px; }
+      .chip.ok { background: var(--green-soft); border-color: transparent; color: var(--green); font-weight: 600; }
+      .chip.ok:hover { border-color: var(--green); }
+      .chip.miss { border-style: dashed; }
+      .none-left { font-size: .9rem; color: var(--green); font-weight: 600; padding: 2px; }
+      .copy-btn { background: transparent; color: var(--muted); }
+      .copy-btn:hover { color: var(--text); background: var(--line); }
+      .copy-btn svg { width: 16px; height: 16px; }
+
+      .sheet { max-height: 92vh; overflow-y: auto; }
+      .sheet-sub { margin: -10px 0 16px; color: var(--muted); font-size: .92rem; }
+      .chip.place-other { border-style: dashed; }
+      .file-drop {
+        position: relative; display: flex; align-items: center; gap: 10px; cursor: pointer;
+        padding: 14px; border-radius: 14px; border: 2px dashed var(--line); background: var(--glass);
+        transition: border-color .15s;
+      }
+      .file-drop:hover, .file-drop.has { border-color: var(--accent); }
+      .file-drop input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+      .file-drop svg { width: 22px; height: 22px; flex: none; color: var(--accent); }
+      .file-drop span { flex: 1; min-width: 0; word-break: break-all; font-weight: 500; }
+      .warn { font-size: .84rem; color: var(--orange); margin-top: 8px; }
+      .btn-spin {
+        display: inline-block; width: 16px; height: 16px; vertical-align: -3px; margin-inline-end: 6px;
+        border-radius: 50%; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+        animation: spin .8s linear infinite;
+      }
 
       /* ---------- modal ---------- */
       .modal { position: fixed; inset: 0; z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
@@ -504,6 +575,64 @@
       </div>
     </div>
 
+    <div id="task-modal" class="modal" hidden>
+      <div class="modal-backdrop" data-act="close-task"></div>
+      <form class="sheet t-0" id="task-form" autocomplete="off">
+        <div class="sheet-handle"></div>
+        <h2 id="task-h">מטלה חדשה</h2>
+        <label class="field">
+          <span class="label">שם המטלה</span>
+          <input id="task-title" type="text" maxlength="200" placeholder="למשל: עבודת סיכום פרק א׳">
+        </label>
+        <label class="field">
+          <span class="label">תג״ב</span>
+          <input id="task-due" type="date">
+        </label>
+        <div class="field">
+          <span class="label">איפה מגישים? (אפשר לבחור כמה)</span>
+          <div class="chips" id="place-pick"></div>
+        </div>
+        <label class="field" id="other-field" hidden>
+          <span class="label">איפה עוד?</span>
+          <input id="task-other" type="text" maxlength="200" placeholder="למשל: במייל למפקד הצוות">
+        </label>
+        <div class="sheet-actions">
+          <button type="button" class="btn ghost" data-act="close-task">ביטול</button>
+          <button type="submit" class="btn primary" id="task-submit">הוספה</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="upload-modal" class="modal" hidden>
+      <div class="modal-backdrop" data-act="close-upload"></div>
+      <form class="sheet t-0" id="upload-form" autocomplete="off">
+        <div class="sheet-handle"></div>
+        <h2>העלאה לדרייב</h2>
+        <p class="sheet-sub" id="upload-task"></p>
+        <div class="field">
+          <span class="label">מי מגיש?</span>
+          <div class="chips" id="upload-people"></div>
+          <div class="warn" id="upload-warn" hidden>כבר הועלה קובץ. העלאה חדשה תחליף אותו.</div>
+        </div>
+        <div class="field">
+          <span class="label">קובץ PDF</span>
+          <label class="file-drop" id="file-drop">
+            <input type="file" id="upload-file" accept="application/pdf,.pdf">
+            <span id="upload-fname">בחירת קובץ…</span>
+          </label>
+        </div>
+        <div class="sheet-actions">
+          <button type="button" class="btn ghost" data-act="close-upload">ביטול</button>
+          <button type="submit" class="btn primary" id="upload-btn">העלאה</button>
+        </div>
+      </form>
+    </div>
+
+    <nav id="tabbar" class="tabbar glass" hidden>
+      <button class="tb-btn" data-act="page" data-page="tasks"></button>
+      <button class="tb-btn" data-act="page" data-page="exp"></button>
+    </nav>
+
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <script src="config.js"></script>
@@ -519,8 +648,18 @@
         download: svg('<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>', 2.2),
         doc: svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>'),
         check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 3),
-        chev: svg('<path d="M6 9l6 6 6-6"/>', 2.2)
+        chev: svg('<path d="M6 9l6 6 6-6"/>', 2.2),
+        tasks: svg('<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11l2 2 4-4"/><path d="M9 17h6"/>'),
+        exp: svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>'),
+        upload: svg('<path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M5 20h14"/>', 2.2),
+        edit: svg('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
+        cloud: svg('<path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8z"/>'),
+        pin: svg('<path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/>'),
+        pen: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>')
       };
+      const DRIVE = 'דרייב';
+      const PLACE_ICON = { 'קמפוס': 'pin', 'דרייב': 'cloud', 'כתב יד': 'pen' };
+      const MAX_MB = 20;
       const PLURAL = { 'הדרכתית': 'הדרכתיות', 'פיקודית': 'פיקודיות' };
       const CATALOG = window.CATALOG || [];
       const FORMS = window.FORMS || [];
@@ -534,6 +673,13 @@
 
       const state = {
         data: null,
+        page: 'tasks', // תמיד נפתח על המטלות
+        editTask: null,
+        taskPlaces: [],
+        taskOther: false,
+        upTask: null,
+        upPerson: null,
+        uploading: false,
         person: storeGet('person'),
         tab: storeGet('tab') || 'הדרכתית',
         shownTab: null,
@@ -548,6 +694,12 @@
       const form = document.getElementById('add-form');
       const titleInput = document.getElementById('add-title');
       const formsModal = document.getElementById('forms-modal');
+      const taskModal = document.getElementById('task-modal');
+      const taskForm = document.getElementById('task-form');
+      const uploadModal = document.getElementById('upload-modal');
+      const uploadForm = document.getElementById('upload-form');
+      const fileInput = document.getElementById('upload-file');
+      const tabbar = document.getElementById('tabbar');
 
       // ---------- helpers ----------
       function storeGet(k) { try { return localStorage.getItem('exp:' + k); } catch (e) { return null; } }
@@ -617,8 +769,24 @@
         const people = [1, 2, 3, 4, 5].map(i => 'חניך ' + i);
         let exps;
         try { exps = JSON.parse(localStorage.getItem('exp:demo') || '[]'); } catch (e) { exps = []; }
-        const save = () => { try { localStorage.setItem('exp:demo', JSON.stringify(exps)); } catch (e) {} };
-        const snap = () => JSON.parse(JSON.stringify({ people, types: TYPES, stages, experiences: exps }));
+        let tasks, subs;
+        try { tasks = JSON.parse(localStorage.getItem('exp:demo-tasks') || '[]'); } catch (e) { tasks = []; }
+        try { subs = JSON.parse(localStorage.getItem('exp:demo-subs') || '[]'); } catch (e) { subs = []; }
+        const save = () => {
+          try {
+            localStorage.setItem('exp:demo', JSON.stringify(exps));
+            localStorage.setItem('exp:demo-tasks', JSON.stringify(tasks));
+            localStorage.setItem('exp:demo-subs', JSON.stringify(subs));
+          } catch (e) {}
+        };
+        const PLACES = ['קמפוס', 'דרייב', 'כתב יד'];
+        const snap = () => JSON.parse(JSON.stringify({
+          people, types: TYPES, stages, experiences: exps, places: PLACES, assignments: tasks, submissions: subs
+        }));
+        const setSub = (aid, person, mode, on) => {
+          subs = subs.filter(s => !(s.aid === aid && s.person === person));
+          if (on) subs.push({ aid, person, mode, url: '', time: new Date().toISOString() });
+        };
         const delay = v => new Promise(r => setTimeout(() => r(v), 150));
         const setTo = (x, s) => { x.stage = Math.min(stages[x.type].length + 1, Math.max(1, s)); x.updated = new Date().toISOString(); };
         return {
@@ -638,7 +806,23 @@
             if (x) setTo(x, Math.round(Number(s)) || 1);
             save(); return delay(snap());
           },
-          deleteExperience(id) { exps = exps.filter(e => e.id !== id); save(); return delay(snap()); }
+          deleteExperience(id) { exps = exps.filter(e => e.id !== id); save(); return delay(snap()); },
+          addAssignment(title, due, places, other) {
+            tasks.push({ id: 'd' + Date.now(), title, due, places, other, created: new Date().toISOString() });
+            save(); return delay(snap());
+          },
+          updateAssignment(id, title, due, places, other) {
+            const t = tasks.find(t => t.id === id);
+            if (t) Object.assign(t, { title, due, places, other });
+            save(); return delay(snap());
+          },
+          deleteAssignment(id) {
+            tasks = tasks.filter(t => t.id !== id); subs = subs.filter(s => s.aid !== id);
+            save(); return delay(snap());
+          },
+          setSubmitted(aid, person, on) { setSub(aid, person, 'manual', on); save(); return delay(snap()); },
+          // במצב הדגמה אין דרייב: רק נרשם שהוגש
+          uploadSubmission(aid, person) { setSub(aid, person, 'upload', true); save(); return new Promise(r => setTimeout(() => r(snap()), 900)); }
         };
       })();
 
@@ -658,7 +842,10 @@
       function stagesOf(type) { return state.data.stages[type] || []; }
       function isDone(exp) { return exp.stage > stagesOf(exp.type).length; }
       function findExp(id) { return state.data.experiences.find(x => x.id === id); }
-      function isOpen(x) { return x.id in state.open ? state.open[x.id] : !isDone(x); }
+      function isOpen(x) {
+        if (x.id in state.open) return state.open[x.id];
+        return 'stage' in x ? !isDone(x) : !allIn(x);
+      }
       function fillMessage(msg, exp) {
         return msg.replace(/\{שם\}/g, exp.person).replace(/\{התנסות\}/g, exp.title);
       }
@@ -731,8 +918,158 @@
       // ---------- render ----------
       function render() {
         if (!state.data) return;
-        if (!state.person || state.data.people.indexOf(state.person) === -1) renderPeople();
+        renderTabbar();
+        if (state.page === 'tasks') renderTasks();
+        else if (!state.person || state.data.people.indexOf(state.person) === -1) renderPeople();
         else renderPerson();
+      }
+
+      function renderTabbar() {
+        const open = tasksOf().filter(t => !allIn(t)).length;
+        const [bt, be] = tabbar.querySelectorAll('.tb-btn');
+        bt.innerHTML = `${ICONS.tasks} מטלות${open ? ` <span class="badge">${open}</span>` : ''}`;
+        be.innerHTML = `${ICONS.exp} התנסויות`;
+        bt.classList.toggle('active', state.page === 'tasks');
+        be.classList.toggle('active', state.page === 'exp');
+        tabbar.hidden = false;
+      }
+
+      // ---------- tasks (מטלות) ----------
+      function tasksOf() { return state.data.assignments || []; }
+      function findTask(id) { return tasksOf().find(t => t.id === id); }
+      function hasDrive(t) { return t.places.indexOf(DRIVE) !== -1; }
+      function subsOf(aid) { return (state.data.submissions || []).filter(s => s.aid === aid); }
+      function subFor(aid, person) { return subsOf(aid).find(s => s.person === person); }
+      function submittedPeople(t) {
+        const set = new Set(subsOf(t.id).map(s => s.person));
+        return state.data.people.filter(p => set.has(p));
+      }
+      function allIn(t) {
+        const n = state.data.people.length;
+        return n > 0 && submittedPeople(t).length >= n;
+      }
+      function parseDue(due) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(due || '');
+        return m ? new Date(+m[1], m[2] - 1, +m[3]) : null;
+      }
+      // "תג״ב 3.12 · עוד 3 ימים", עם צבע כשקרוב או באיחור
+      function dueHtml(t) {
+        const d = parseDue(t.due);
+        if (!d) return 'ללא תג״ב';
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const days = Math.round((d - today) / 864e5);
+        const date = `תג״ב ${d.getDate()}.${d.getMonth() + 1}`;
+        let rel, cls = '';
+        if (days === 0) { rel = 'היום'; cls = 'soon'; }
+        else if (days === 1) { rel = 'מחר'; cls = 'soon'; }
+        else if (days > 1) { rel = `עוד ${days} ימים`; if (days <= 3) cls = 'soon'; }
+        else { rel = days === -1 ? 'באיחור של יום' : `באיחור של ${-days} ימים`; cls = 'late'; }
+        if (allIn(t)) cls = '';
+        return `${date} · <span class="${cls}">${rel}</span>`;
+      }
+      function placeNames(t) { return t.places.concat(t.other ? [t.other] : []); }
+
+      function renderTasks() {
+        const d = state.data;
+        const list = tasksOf().slice().sort((a, b) =>
+          (a.due || '9999').localeCompare(b.due || '9999') || (a.created || '').localeCompare(b.created || ''));
+        const open = list.filter(t => !allIn(t));
+        const done = list.filter(allIn);
+        const oldApi = API_URL && !('assignments' in d);
+
+        let body;
+        if (!list.length) {
+          body = `<div class="empty"><div class="big">✦</div><b>אין עדיין מטלות</b>לחצו על "מטלה חדשה" כדי להוסיף</div>`;
+        } else {
+          body = (open.length && done.length ? `<div class="section-title">פתוחות (${open.length})</div>` : '')
+            + open.map(taskCardHtml).join('');
+          if (done.length) body += `<div class="section-title">כולם הגישו (${done.length})</div>` + done.map(taskCardHtml).join('');
+        }
+
+        app.innerHTML = `
+          <div class="hero hero-row">
+            <div>
+              <span class="eyebrow">הגשות</span>
+              <h1>מטלות</h1>
+              <p>${open.length ? open.length + ' מטלות פתוחות' : list.length ? 'כולם הגישו הכול 🎉' : 'מה צריך להגיש ועד מתי'}</p>
+              ${API_URL ? '' : '<p class="demo-note">מצב הדגמה: הנתונים נשמרים רק בדפדפן הזה, וקבצים לא עולים לדרייב.</p>'}
+              ${oldApi ? '<p class="demo-note">צריך לעדכן את קוד ה-Apps Script כדי שהמטלות יישמרו (ראו README).</p>' : ''}
+            </div>
+            <button class="icon-btn glass" data-act="refresh" title="רענון" aria-label="רענון">${ICONS.refresh}</button>
+          </div>
+          <div class="list t-0">${body}</div>
+          <button class="fab t-0" data-act="add-task">${ICONS.plus} מטלה חדשה</button>`;
+        setRefreshSpin(state.refreshing);
+      }
+
+      function taskCardHtml(t) {
+        const people = state.data.people;
+        const total = people.length;
+        const inSet = new Set(submittedPeople(t));
+        const count = inSet.size;
+        const done = allIn(t);
+        const open = isOpen(t);
+        const id = esc(t.id);
+        const drive = hasDrive(t);
+        const missing = people.filter(p => !inSet.has(p));
+        const submitted = people.filter(p => inSet.has(p));
+
+        const pct = total ? Math.round(count / total * 100) : 0;
+        const ring = `<span class="ring" aria-hidden="true"><svg viewBox="0 0 36 36">
+            <circle class="ring-bg" cx="18" cy="18" r="15.9155"/>
+            ${pct ? `<circle class="ring-fg" cx="18" cy="18" r="15.9155" stroke-dasharray="${pct} 100"/>` : ''}
+          </svg><span class="ring-t small">${done ? ICONS.check : count + '/' + total}</span></span>`;
+
+        const tags = placeNames(t).map(p =>
+          `<span class="place-tag">${PLACE_ICON[p] ? ICONS[PLACE_ICON[p]] : ''}${esc(p)}</span>`).join('');
+
+        // לא הגישו: בדרייב → לחיצה פותחת העלאה בשם הזה; אחרת → לחיצה מסמנת שהגיש
+        const missChips = missing.map(p => drive
+          ? `<button class="chip miss" data-act="upload" data-id="${id}" data-name="${esc(p)}" title="העלאה בשם ${esc(p)}">${esc(p)}</button>`
+          : `<button class="chip miss" data-act="toggle-sub" data-id="${id}" data-name="${esc(p)}" title="סימון שהגיש/ה">${esc(p)}</button>`
+        ).join('');
+        const okChips = submitted.map(p => {
+          const s = subFor(t.id, p);
+          if (drive) {
+            return s && s.url
+              ? `<a class="chip ok" href="${esc(s.url)}" target="_blank" rel="noopener" title="פתיחת הקובץ">${ICONS.check}${esc(p)}</a>`
+              : `<span class="chip ok">${ICONS.check}${esc(p)}</span>`;
+          }
+          return `<button class="chip ok" data-act="toggle-sub" data-id="${id}" data-name="${esc(p)}" title="ביטול הסימון">${ICONS.check}${esc(p)}</button>`;
+        }).join('');
+
+        return `
+          <article class="card glass ${done ? 'done' : ''} ${open ? 'open' : ''}" data-card="${id}">
+            <button class="card-head" data-act="toggle" data-id="${id}" aria-expanded="${open}">
+              ${ring}
+              <span class="ch-text"><h3>${esc(t.title)}</h3>
+                <span class="ch-sub">${dueHtml(t)} · ${esc(placeNames(t).join(', '))}</span></span>
+              <span class="chev">${ICONS.chev}</span>
+            </button>
+            <div class="card-body"><div class="card-inner"><div class="card-pad">
+              <div class="place-tags">${tags}</div>
+              ${drive ? `<button class="btn primary wide" data-act="upload" data-id="${id}">${ICONS.upload} העלאת PDF לדרייב</button>` : ''}
+              <div class="sub-head">לא הגישו (${missing.length})
+                ${missing.length ? `<span class="hint">· ${drive ? 'לחיצה על שם פותחת העלאה' : 'לחיצה על שם מסמנת שהגיש/ה'}</span>` : ''}</div>
+              ${missing.length ? `<div class="chips">${missChips}</div>` : '<div class="none-left">כולם הגישו 🎉</div>'}
+              ${submitted.length ? `<div class="sub-head">הגישו (${submitted.length})</div><div class="chips">${okChips}</div>` : ''}
+              <div class="card-foot" style="margin-top:14px">
+                ${missing.length ? `<button class="del copy-btn" data-act="copy-missing" data-id="${id}">${ICONS.copy} העתקת רשימה</button>` : ''}
+                <span class="spacer"></span>
+                <button class="del copy-btn" data-act="edit-task" data-id="${id}">${ICONS.edit} עריכה</button>
+                <button class="del" data-act="del-task" data-id="${id}">${ICONS.trash} מחיקה</button>
+              </div>
+            </div></div></div>
+          </article>`;
+      }
+
+      function toggleSub(aid, person, on, isUndo) {
+        if (String(aid).startsWith('tmp-')) return toast('רגע, עדיין שומר…');
+        mutate(() => call('setSubmitted', aid, person, on), () => {
+          state.data.submissions = (state.data.submissions || []).filter(s => !(s.aid === aid && s.person === person));
+          if (on) state.data.submissions.push({ aid, person, mode: 'manual', url: '', time: new Date().toISOString() });
+        }, isUndo ? 'בוטל' : on ? `סומנה הגשה של ${person}` : `הוסר הסימון של ${person}`,
+        isUndo ? null : { label: 'ביטול', fn: () => toggleSub(aid, person, !on, true) });
       }
 
       function renderError(e) {
@@ -897,13 +1234,13 @@
       }
 
       function toggleCard(id) {
-        const x = findExp(id);
+        const x = findExp(id) || findTask(id);
         const el = app.querySelector(`[data-card="${CSS.escape(id)}"]`);
         if (!x || !el) return;
         const open = !isOpen(x);
         state.open[id] = open;
         // שומרים רק כרטיסים שעדיין קיימים
-        const ids = new Set(state.data.experiences.map(e => e.id));
+        const ids = new Set(state.data.experiences.map(e => e.id).concat(tasksOf().map(t => t.id)));
         Object.keys(state.open).forEach(k => { if (!ids.has(k)) delete state.open[k]; });
         storeSet('open', JSON.stringify(state.open));
         el.classList.toggle('open', open);
@@ -984,7 +1321,7 @@
       });
 
       // ---------- copy ----------
-      async function copyText(text) {
+      async function copyText(text, msg) {
         try {
           await navigator.clipboard.writeText(text);
         } catch (e) {
@@ -994,8 +1331,134 @@
           document.execCommand('copy');
           ta.remove();
         }
-        toast('ההודעה הועתקה');
+        toast(msg || 'ההודעה הועתקה');
       }
+
+      // ---------- task modal (הוספה / עריכה) ----------
+      function placeOptions() { return (state.data && state.data.places) || ['קמפוס', DRIVE, 'כתב יד']; }
+      function openTaskModal(t) {
+        state.editTask = t ? t.id : null;
+        document.getElementById('task-h').textContent = t ? 'עריכת מטלה' : 'מטלה חדשה';
+        document.getElementById('task-submit').textContent = t ? 'שמירה' : 'הוספה';
+        document.getElementById('task-title').value = t ? t.title : '';
+        document.getElementById('task-due').value = t ? t.due : '';
+        document.getElementById('task-other').value = t ? t.other : '';
+        state.taskPlaces = t ? t.places.slice() : [];
+        state.taskOther = !!(t && t.other);
+        renderPlacePick();
+        taskModal.hidden = false;
+        if (!t) setTimeout(() => document.getElementById('task-title').focus(), 50);
+      }
+      function closeTaskModal() { taskModal.hidden = true; }
+      function renderPlacePick() {
+        document.getElementById('place-pick').innerHTML = placeOptions().map(p =>
+          `<button type="button" class="chip ${state.taskPlaces.indexOf(p) !== -1 ? 'sel' : ''}" data-act="pick-place" data-p="${esc(p)}">${PLACE_ICON[p] ? ICONS[PLACE_ICON[p]] : ''}${esc(p)}</button>`
+        ).join('') + `<button type="button" class="chip place-other ${state.taskOther ? 'sel' : ''}" data-act="pick-place" data-p="">אחר…</button>`;
+        document.getElementById('other-field').hidden = !state.taskOther;
+      }
+
+      taskForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const titleEl = document.getElementById('task-title');
+        const title = titleEl.value.trim();
+        const due = document.getElementById('task-due').value;
+        const places = placeOptions().filter(p => state.taskPlaces.indexOf(p) !== -1);
+        const other = state.taskOther ? document.getElementById('task-other').value.trim() : '';
+        if (!title) { titleEl.focus(); return toast('חסר שם מטלה'); }
+        if (state.taskOther && !other) { document.getElementById('task-other').focus(); return toast('כתבו איפה עוד מגישים'); }
+        if (!places.length && !other) return toast('בחרו לפחות מקום הגשה אחד');
+        const editId = state.editTask;
+        if (editId && String(editId).startsWith('tmp-')) return toast('רגע, עדיין שומר…');
+        closeTaskModal();
+        if (editId) {
+          mutate(() => call('updateAssignment', editId, title, due, places, other), () => {
+            const t = findTask(editId);
+            if (t) Object.assign(t, { title, due, places, other });
+          }, 'המטלה עודכנה');
+        } else {
+          mutate(() => call('addAssignment', title, due, places, other), () => {
+            if (!state.data.assignments) state.data.assignments = [];
+            state.data.assignments.push({ id: 'tmp-' + Date.now(), title, due, places, other, created: new Date().toISOString() });
+          }, 'המטלה נוספה');
+        }
+      });
+
+      // ---------- upload modal ----------
+      function openUpload(t, person) {
+        if (String(t.id).startsWith('tmp-')) return toast('רגע, עדיין שומר…');
+        state.upTask = t.id;
+        const me = storeGet('me');
+        state.upPerson = person || (state.data.people.indexOf(me) !== -1 ? me : null);
+        document.getElementById('upload-task').textContent = t.title;
+        fileInput.value = '';
+        updateFileLabel();
+        renderUploadPeople();
+        setUploadBusy(false);
+        uploadModal.hidden = false;
+      }
+      function closeUpload() { if (!state.uploading) uploadModal.hidden = true; }
+      function renderUploadPeople() {
+        const t = findTask(state.upTask);
+        if (!t) return;
+        document.getElementById('upload-people').innerHTML = state.data.people.map(p =>
+          `<button type="button" class="chip ${p === state.upPerson ? 'sel' : ''}" data-act="up-person" data-name="${esc(p)}">${subFor(t.id, p) ? ICONS.check : ''}${esc(p)}</button>`
+        ).join('');
+        document.getElementById('upload-warn').hidden = !(state.upPerson && subFor(t.id, state.upPerson));
+      }
+      function updateFileLabel() {
+        const f = fileInput.files[0];
+        document.getElementById('upload-fname').textContent = f ? f.name : 'בחירת קובץ…';
+        document.getElementById('file-drop').classList.toggle('has', !!f);
+      }
+      function setUploadBusy(on) {
+        state.uploading = on;
+        const b = document.getElementById('upload-btn');
+        b.disabled = on;
+        b.innerHTML = on ? '<span class="btn-spin"></span>מעלה…' : 'העלאה';
+      }
+      function readBase64(file) {
+        return new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result).split(',')[1] || '');
+          r.onerror = () => reject(new Error('לא הצלחנו לקרוא את הקובץ'));
+          r.readAsDataURL(file);
+        });
+      }
+      fileInput.addEventListener('change', updateFileLabel);
+
+      uploadForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        if (state.uploading) return;
+        const t = findTask(state.upTask);
+        const person = state.upPerson;
+        const f = fileInput.files[0];
+        if (!t) return toast('המטלה לא נמצאה');
+        if (!person) return toast('בחרו מי מגיש');
+        if (!f) return toast('בחרו קובץ PDF');
+        if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') return toast('אפשר להעלות רק קובץ PDF');
+        if (f.size > MAX_MB * 1024 * 1024) return toast(`הקובץ גדול מדי (עד ${MAX_MB}MB)`);
+        setUploadBusy(true);
+        let queued = false;
+        try {
+          const b64 = await readBase64(f);
+          // דרך אותו תור של שאר השינויים, כדי לשמור על הסדר
+          state.pending++; queued = true;
+          const p = queue.then(() => call('uploadSubmission', t.id, person, b64));
+          queue = p.catch(() => {});
+          const d = await p;
+          state.pending--; queued = false;
+          if (state.pending === 0) state.data = d;
+          storeSet('me', person);
+          setUploadBusy(false);
+          uploadModal.hidden = true;
+          render();
+          toast('הקובץ הועלה לדרייב ✓');
+        } catch (err) {
+          if (queued) state.pending--;
+          setUploadBusy(false);
+          toast((err && err.message) ? 'ההעלאה נכשלה: ' + err.message : 'ההעלאה נכשלה, נסו שוב');
+        }
+      });
 
       // ---------- events ----------
       document.addEventListener('click', e => {
@@ -1005,7 +1468,43 @@
         const id = el.dataset.id;
         const exp = id && state.data ? findExp(id) : null;
 
-        if (act === 'pick') { state.person = el.dataset.name; state.shownTab = null; storeSet('person', state.person); render(); window.scrollTo(0, 0); }
+        const task = id && state.data ? findTask(id) : null;
+
+        if (act === 'page') {
+          if (state.page !== el.dataset.page) { state.page = el.dataset.page; state.shownTab = null; render(); window.scrollTo(0, 0); }
+        }
+        else if (act === 'add-task') openTaskModal(null);
+        else if (act === 'edit-task' && task) openTaskModal(task);
+        else if (act === 'close-task') closeTaskModal();
+        else if (act === 'pick-place') {
+          const p = el.dataset.p;
+          if (!p) {
+            state.taskOther = !state.taskOther;
+            if (state.taskOther) setTimeout(() => document.getElementById('task-other').focus(), 50);
+          } else {
+            const i = state.taskPlaces.indexOf(p);
+            i === -1 ? state.taskPlaces.push(p) : state.taskPlaces.splice(i, 1);
+          }
+          renderPlacePick();
+        }
+        else if (act === 'del-task' && task) {
+          if (String(task.id).startsWith('tmp-')) return toast('רגע, עדיין שומר…');
+          if (!confirm(`למחוק את המטלה "${task.title}"?\n(קבצים שכבר עלו לדרייב לא יימחקו)`)) return;
+          mutate(() => call('deleteAssignment', task.id), () => {
+            state.data.assignments = tasksOf().filter(t => t.id !== task.id);
+            state.data.submissions = (state.data.submissions || []).filter(s => s.aid !== task.id);
+          }, 'נמחק');
+        }
+        else if (act === 'toggle-sub' && task) toggleSub(task.id, el.dataset.name, !subFor(task.id, el.dataset.name));
+        else if (act === 'upload' && task) openUpload(task, el.dataset.name);
+        else if (act === 'up-person') { if (!state.uploading) { state.upPerson = el.dataset.name; renderUploadPeople(); } }
+        else if (act === 'close-upload') closeUpload();
+        else if (act === 'copy-missing' && task) {
+          const inSet = new Set(submittedPeople(task));
+          const missing = state.data.people.filter(p => !inSet.has(p));
+          copyText(`עוד לא הגישו את "${task.title}":\n` + missing.map(p => '• ' + p).join('\n'), 'הרשימה הועתקה');
+        }
+        else if (act === 'pick') { state.person = el.dataset.name; state.shownTab = null; storeSet('person', state.person); render(); window.scrollTo(0, 0); }
         else if (act === 'switch') { state.person = null; storeSet('person', null); render(); }
         else if (act === 'tab') { state.tab = el.dataset.type; storeSet('tab', state.tab); render(); }
         else if (act === 'refresh') refresh(true);
@@ -1033,7 +1532,7 @@
         }
       });
 
-      document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); formsModal.hidden = true; } });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); formsModal.hidden = true; closeTaskModal(); closeUpload(); } });
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && state.data) refresh(true); });
 
       refresh();
