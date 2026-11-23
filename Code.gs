@@ -18,6 +18,7 @@ const DEFAULT_TASKS = [
   ['סכמ״ש', '2026-11-27', '', 'במחברת (עד כניסת שבת)'],
   ['ספרא וסייפא', '2026-12-14', '', '']
 ];
+const SEED_KEY = 'מטלות התחלתיות נוספו';
 const SHEET_SETTINGS = 'הגדרות';
 /**
  * תיקיית ההגשות בדרייב (תת-תיקייה לכל מטלה).
@@ -152,11 +153,6 @@ function ensureSetup_() {
     tasks.getRange(1, 1, 1, 7).setValues([['id', 'שם', 'תג"ב', 'מקומות', 'אחר', 'תיקייה', 'נוצר']]);
     tasks.getRange('A:F').setNumberFormat('@');
     styleHeader_(tasks, 7);
-    const now = new Date();
-    const seed = DEFAULT_TASKS.map(function (t) {
-      return [Utilities.getUuid(), t[0], t[1], t[2], t[3], '', now];
-    });
-    tasks.getRange(2, 1, seed.length, 7).setValues(seed);
   }
 
   let subs = ss.getSheetByName(SHEET_SUBS);
@@ -173,6 +169,17 @@ function ensureSetup_() {
     settings.getRange(1, 1, 1, 3).setValues([['מפתח', 'ערך', 'קישור']]);
     settings.getRange('A:B').setNumberFormat('@');
     styleHeader_(settings, 3);
+  }
+
+  // מטלות התחלתיות: נכנסות פעם אחת בלבד (גם אם הלשונית כבר הייתה קיימת)
+  if (!getSetting_(SEED_KEY).value) {
+    const existing = rows_(tasks).map(function (r) { return String(r[1]); });
+    const now = new Date();
+    const seed = DEFAULT_TASKS
+      .filter(function (t) { return existing.indexOf(t[0]) === -1; })
+      .map(function (t) { return [Utilities.getUuid(), t[0], t[1], t[2], t[3], '', now]; });
+    if (seed.length) tasks.getRange(tasks.getLastRow() + 1, 1, seed.length, 7).setValues(seed);
+    setSetting_(SEED_KEY, 'כן', '');
   }
 
   // מחיקת הגיליון הריק שנוצר כברירת מחדל, אם קיים
