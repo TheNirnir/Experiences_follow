@@ -1061,7 +1061,7 @@
               ? `<a class="chip ok" href="${esc(s.url)}" target="_blank" rel="noopener" title="פתיחת הקובץ">${ICONS.check}${esc(p)}</a>`
               : `<span class="chip ok">${ICONS.check}${esc(p)}</span>`;
           }
-          return `<button class="chip ok" data-act="toggle-sub" data-id="${id}" data-name="${esc(p)}" title="ביטול הסימון">${ICONS.check}${esc(p)}${drive ? ' (בלי קובץ)' : ''}</button>`;
+          return `<button class="chip ok" data-act="toggle-sub" data-id="${id}" data-name="${esc(p)}" title="ביטול הסימון">${ICONS.check}${esc(p)}</button>`;
         }).join('');
 
         return `
