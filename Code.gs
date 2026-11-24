@@ -9,8 +9,12 @@ const SHEET_EXP = 'התנסויות';
 const TYPES = ['הדרכתית', 'פיקודית'];
 const SHEET_TASKS = 'מטלות';
 const SHEET_SUBS = 'הגשות';
-const PLACES = ['קמפוס', 'דרייב', 'כתב יד'];
+const PLACES = ['קמפוס', 'דרייב', 'אקסל', 'כתב יד'];
 const DRIVE = 'דרייב';
+/** אקסל: כל מגיש ממלא שדות, והם נשמרים בשורה שלו בגיליון של המטלה */
+const EXCEL = 'אקסל';
+const NAME_COL = 'שם';
+const MAX_FIELDS = 20;
 /** מטלות התחלתיות שנכנסות כשנוצרת לשונית "מטלות": [שם, תג"ב, מקומות, אחר] */
 const DEFAULT_TASKS = [
   ['ל״ע 2 ומבנה צה״ל', '2026-11-23', 'קמפוס,דרייב', ''],
@@ -28,6 +32,8 @@ const SHEET_SETTINGS = 'הגדרות';
 const ROOT_FOLDER_NAME = 'הגשות מטלות';
 const ROOT_KEY = 'תיקיית הגשות';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
+const SHEET_MIME = 'application/vnd.google-apps.spreadsheet';
+const TASK_COLS = 9;
 
 /**
  * שלבי מעגל החניכה (לפי ה.ה קה"ד צוותי, סעיף 4(2)), זהים לשני הסוגים.
@@ -77,7 +83,8 @@ const ACTIONS = {
   updateAssignment: updateAssignment,
   deleteAssignment: deleteAssignment,
   setSubmitted: setSubmitted,
-  uploadSubmission: uploadSubmission
+  uploadSubmission: uploadSubmission,
+  submitExcel: submitExcel
 };
 
 /** GET → כל הנתונים */
@@ -154,6 +161,12 @@ function ensureSetup_() {
     tasks.getRange('A:F').setNumberFormat('@');
     styleHeader_(tasks, 7);
   }
+  // עמודות שנוספו בהמשך: שדות למילוי, ומזהה גיליון האקסל של המטלה
+  if (tasks.getRange(1, 8).getValue() === '') {
+    tasks.getRange(1, 8, 1, 2).setValues([['שדות', 'אקסל']]);
+    tasks.getRange('H:I').setNumberFormat('@');
+    styleHeader_(tasks, TASK_COLS);
+  }
 
   let subs = ss.getSheetByName(SHEET_SUBS);
   if (!subs) {
@@ -199,9 +212,7 @@ function getData() {
   ensureSetup_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  const people = rows_(ss.getSheetByName(SHEET_PEOPLE))
-    .map(function (r) { return String(r[0]).trim(); })
-    .filter(function (n) { return n; });
+  const people = peopleList_();
 
   const stages = {};
   TYPES.forEach(function (t) { stages[t] = []; });
@@ -236,14 +247,19 @@ function getData() {
         places: String(r[3] || '').split(',').map(function (p) { return p.trim(); })
           .filter(function (p) { return PLACES.indexOf(p) !== -1; }),
         other: String(r[4] || ''),
-        created: iso_(r[6])
+        created: iso_(r[6]),
+        fields: fieldsOf_(r[7]),
+        sheetUrl: r[8] ? sheetUrl_(r[8]) : ''
       };
     });
 
   const submissions = rows_(ss.getSheetByName(SHEET_SUBS))
     .filter(function (r) { return r[0] !== ''; })
     .map(function (r) {
-      return { aid: String(r[0]), person: String(r[1]), mode: String(r[2]), url: String(r[4] || ''), time: iso_(r[5]) };
+      const s = { aid: String(r[0]), person: String(r[1]), mode: String(r[2]), url: String(r[4] || ''), time: iso_(r[5]) };
+      // באקסל: עמודת fileId שומרת עותק של מה שמולא, כדי שאפשר יהיה לערוך מהאתר
+      if (s.mode === 'excel') { try { s.values = JSON.parse(String(r[3] || '{}')); } catch (e) { s.values = {}; } }
+      return s;
     });
 
   return {
@@ -251,6 +267,20 @@ function getData() {
     places: PLACES, assignments: assignments, submissions: submissions,
     driveFolder: getSetting_(ROOT_KEY).url
   };
+}
+
+function peopleList_() {
+  return rows_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PEOPLE))
+    .map(function (r) { return String(r[0]).trim(); })
+    .filter(function (n) { return n; });
+}
+
+function fieldsOf_(v) {
+  return String(v || '').split('\n').map(function (f) { return f.trim(); }).filter(function (f) { return f; });
+}
+
+function sheetUrl_(id) {
+  return 'https://docs.google.com/spreadsheets/d/' + id + '/edit';
 }
 
 function dateStr_(v) {
@@ -346,7 +376,7 @@ function withLock_(fn) {
 
 // ---------- מטלות ----------
 
-function cleanTask_(title, due, places, other) {
+function cleanTask_(title, due, places, other, fields) {
   title = String(title || '').trim().slice(0, 200);
   due = String(due || '').trim();
   other = String(other || '').trim().slice(0, 200);
@@ -356,28 +386,44 @@ function cleanTask_(title, due, places, other) {
   if (!title) throw new Error('חסר שם מטלה');
   if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) throw new Error('תאריך לא תקין');
   if (!places.length && !other) throw new Error('צריך לבחור לפחות מקום הגשה אחד');
-  return { title: title, due: due, places: places, other: other };
+  fields = (Array.isArray(fields) ? fields : []).map(function (f) {
+    return String(f || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+  }).filter(function (f, i, a) { return f && a.indexOf(f) === i; });
+  if (places.indexOf(EXCEL) === -1) fields = [];
+  else {
+    if (!fields.length) throw new Error('צריך לפחות שדה אחד למילוי באקסל');
+    if (fields.length > MAX_FIELDS) throw new Error('אפשר עד ' + MAX_FIELDS + ' שדות');
+    if (fields.indexOf(NAME_COL) !== -1) throw new Error('העמודה "' + NAME_COL + '" נוספת לבד, אין צורך בשדה כזה');
+  }
+  return { title: title, due: due, places: places, other: other, fields: fields };
 }
 
-function addAssignment(title, due, places, other) {
-  const t = cleanTask_(title, due, places, other);
+function addAssignment(title, due, places, other, fields) {
+  const t = cleanTask_(title, due, places, other, fields);
   return withLock_(function () {
+    const id = Utilities.getUuid();
     SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TASKS)
-      .appendRow([Utilities.getUuid(), safe_(t.title), t.due, t.places.join(','), safe_(t.other), '', new Date()]);
+      .appendRow([id, safe_(t.title), t.due, t.places.join(','), safe_(t.other), '', new Date(), t.fields.join('\n'), '']);
+    if (t.fields.length) taskSheet_(id, t.title, t.fields);
   });
 }
 
-function updateAssignment(id, title, due, places, other) {
-  const t = cleanTask_(title, due, places, other);
+function updateAssignment(id, title, due, places, other, fields) {
+  const t = cleanTask_(title, due, places, other, fields);
   return withLock_(function () {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TASKS);
     const row = findRowIn_(sheet, function (r) { return String(r[0]) === String(id); }, 'המטלה לא נמצאה (אולי נמחקה)');
-    const old = sheet.getRange(row, 1, 1, 6).getValues()[0];
+    const old = sheet.getRange(row, 1, 1, TASK_COLS).getValues()[0];
     sheet.getRange(row, 2, 1, 4).setValues([[safe_(t.title), t.due, t.places.join(','), safe_(t.other)]]);
-    // שינוי שם → גם שם התיקייה בדרייב
-    if (String(old[1]) !== t.title && old[5]) {
-      try { Drive.Files.update({ name: t.title }, String(old[5])); } catch (e) {}
+    // שדות שהוסרו לא נמחקים מהגיליון, רק לא מופיעים יותר בטופס
+    if (t.fields.length) sheet.getRange(row, 8).setValue(t.fields.join('\n'));
+    // שינוי שם → גם שם התיקייה והגיליון בדרייב
+    if (String(old[1]) !== t.title) {
+      [old[5], old[8]].forEach(function (fid) {
+        if (fid) { try { Drive.Files.update({ name: t.title }, String(fid)); } catch (e) {} }
+      });
     }
+    if (t.fields.length) syncHeader_(taskSheet_(String(id), t.title, t.fields), t.fields);
   });
 }
 
@@ -459,6 +505,81 @@ function uploadSubmission(aid, person, base64) {
       subs.appendRow(values);
     }
   });
+}
+
+/** הגשה באקסל: כותב את מה שמולא לשורה של המגיש בגיליון המטלה (שורה חדשה אם אין לו). */
+function submitExcel(aid, person, values) {
+  person = String(person || '').trim();
+  values = values && typeof values === 'object' ? values : {};
+  return withLock_(function () {
+    const data = getData();
+    if (data.people.indexOf(person) === -1) throw new Error('שם לא קיים');
+    const task = data.assignments.filter(function (a) { return a.id === String(aid); })[0];
+    if (!task) throw new Error('המטלה לא נמצאה (אולי נמחקה)');
+    if (task.places.indexOf(EXCEL) === -1 || !task.fields.length) throw new Error('במטלה הזאת לא ממלאים באקסל');
+
+    const clean = {};
+    task.fields.forEach(function (f) { clean[f] = String(values[f] == null ? '' : values[f]).trim().slice(0, 5000); });
+
+    const sid = taskSheet_(task.id, task.title, task.fields);
+    syncHeader_(sid, task.fields);
+    const all = Sheets.Spreadsheets.Values.get(sid, 'A:ZZ').values || [];
+    const header = all[0] || [];
+    let r = 1;
+    while (r < all.length && String((all[r] || [])[0] || '').trim() !== person) r++;
+    const existing = all[r] || [];
+    // עמודות שאינן בטופס (למשל שדה שהוסר) נשארות כמו שהן
+    const line = header.map(function (h, i) {
+      if (i === 0) return person;
+      return clean.hasOwnProperty(h) ? clean[h] : (existing[i] == null ? '' : existing[i]);
+    });
+    Sheets.Spreadsheets.Values.update({ values: [line] }, sid, 'A' + (r + 1), { valueInputOption: 'RAW' });
+
+    const subs = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SUBS);
+    const row = findSubRow_(subs, aid, person);
+    const rec = [String(aid), safe_(person), 'excel', JSON.stringify(clean), sheetUrl_(sid), new Date()];
+    if (!row) subs.appendRow(rec);
+    // הגשה שהועלתה לדרייב נשארת, כדי לא לאבד את הקישור לקובץ
+    else if (String(subs.getRange(row, 3).getValue()) !== 'upload') subs.getRange(row, 1, 1, 6).setValues([rec]);
+  });
+}
+
+/**
+ * מחזיר את מזהה גיליון האקסל של המטלה, ויוצר אותו אם צריך (בתיקיית המטלה בדרייב),
+ * עם עמודת שם, עמודה לכל שדה ושורה לכל אחד מהאנשים. נקרא תחת נעילה.
+ */
+function taskSheet_(id, title, fields) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TASKS);
+  const row = findRowIn_(sheet, function (r) { return String(r[0]) === String(id); }, 'המטלה לא נמצאה');
+  const cached = String(sheet.getRange(row, 9).getValue() || '');
+  if (cached && driveAlive_(cached)) return cached;
+
+  const folderId = taskFolder_({ id: String(id), title: title });
+  const f = Drive.Files.create({ name: title, mimeType: SHEET_MIME, parents: [folderId] }, null, { fields: 'id' });
+  const tab = Sheets.Spreadsheets.get(f.id, { fields: 'sheets.properties.sheetId' }).sheets[0].properties.sheetId;
+  Sheets.Spreadsheets.batchUpdate({ requests: [
+    { updateSheetProperties: {
+      properties: { sheetId: tab, rightToLeft: true, gridProperties: { frozenRowCount: 1 } },
+      fields: 'rightToLeft,gridProperties.frozenRowCount' } },
+    { repeatCell: {
+      range: { sheetId: tab, startRowIndex: 0, endRowIndex: 1 },
+      cell: { userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.933, green: 0.949, blue: 1 } } },
+      fields: 'userEnteredFormat(textFormat,backgroundColor)' } }
+  ] }, f.id);
+  const values = [[NAME_COL].concat(fields)].concat(peopleList_().map(function (p) {
+    return [p].concat(fields.map(function () { return ''; }));
+  }));
+  Sheets.Spreadsheets.Values.update({ values: values }, f.id, 'A1', { valueInputOption: 'RAW' });
+  sheet.getRange(row, 9).setValue(f.id);
+  return f.id;
+}
+
+/** מוסיף לשורת הכותרת בגיליון שדות חדשים שעוד אין להם עמודה. */
+function syncHeader_(sid, fields) {
+  const header = (Sheets.Spreadsheets.Values.get(sid, '1:1').values || [[]])[0] || [];
+  const next = header.length ? header.slice() : [NAME_COL];
+  fields.forEach(function (f) { if (next.indexOf(f) === -1) next.push(f); });
+  if (next.length !== header.length) Sheets.Spreadsheets.Values.update({ values: [next] }, sid, 'A1', { valueInputOption: 'RAW' });
 }
 
 /** מחזיר את מזהה תת-התיקייה של המטלה, ויוצר אותה אם צריך. נקרא תחת נעילה. */
